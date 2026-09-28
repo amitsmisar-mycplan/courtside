@@ -9,6 +9,7 @@ struct GameDetailView: View {
     @State private var showProcessing = false
     @State private var isRenaming = false
     @State private var draftLabel = ""
+    @State private var confirmDeleteVideo = false
 
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 8)]
 
@@ -50,6 +51,17 @@ struct GameDetailView: View {
         }) {
             PlaybackMarkingView(game: game, modelContext: modelContext)
         }
+        .confirmationDialog(
+            "Delete the full game video?",
+            isPresented: $confirmDeleteVideo,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Full Video (\(Format.bytes(game.videoFileSize)))", role: .destructive) {
+                StorageManager.deleteGameVideo(game, in: modelContext)
+            }
+        } message: {
+            Text("Your clips are kept, but you won't be able to add marks or adjust clip timing.")
+        }
         .fullScreenCover(isPresented: $showProcessing) {
             ProcessingView(game: game, modelContext: modelContext)
         }
@@ -82,6 +94,12 @@ struct GameDetailView: View {
             Text("The full game video was deleted. Your clips are kept, but you can't add marks or adjust clip timing.")
         } else if let expiresAt = game.videoExpiresAt {
             Text("Full game video (\(Format.bytes(game.videoFileSize))) is kept until \(expiresAt.formatted(date: .abbreviated, time: .omitted)).")
+        } else if game.keepsVideo {
+            HStack {
+                Text("Full game video (\(Format.bytes(game.videoFileSize))) is kept.")
+                Button("Delete…", role: .destructive) { confirmDeleteVideo = true }
+                    .font(.caption)
+            }
         }
     }
 

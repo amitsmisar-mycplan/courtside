@@ -49,12 +49,15 @@ struct ProcessingView: View {
             extractor.cancel()
         }
         .onChange(of: extractor.phase) { _, phase in
-            if phase == .finished, extractor.completed > 0, game.isVideoAvailable {
+            if phase == .finished, extractor.completed > 0, game.isVideoAvailable, !game.keepsVideo {
                 askAboutVideo = true
             }
         }
         .alert("Keep the full game video? (\(Format.bytes(game.videoFileSize)))", isPresented: $askAboutVideo) {
-            Button("Keep", role: .cancel) {}
+            Button("Keep", role: .cancel) {
+                game.keepsVideo = true
+                try? modelContext.save()
+            }
             Button("Delete", role: .destructive) {
                 StorageManager.deleteGameVideo(game, in: modelContext)
             }
@@ -110,7 +113,7 @@ struct ProcessingView: View {
     }
 
     private var keepVideoMessage: String {
-        var message = "Deleting it frees space but means you can't add more marks or adjust clip timing. Kept videos are deleted automatically after 7 days."
+        var message = "Deleting it frees space but means you can't add more marks or adjust clip timing. You can delete it later from the game page."
         if game.source == .imported {
             message += " The original is still in your Photos library."
         }

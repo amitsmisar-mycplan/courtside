@@ -29,6 +29,8 @@ enum GameSource: String, Codable {
     var isVideoAvailable: Bool
     /// When clips were last extracted. Starts the 7-day auto-delete clock for the full video.
     var processedAt: Date?
+    /// The parent answered "Keep" to the full-video prompt, so it's never auto-deleted.
+    var keepsVideo: Bool = false
     @Relationship(deleteRule: .cascade, inverse: \Mark.game) var marks: [Mark]
     @Relationship(deleteRule: .cascade, inverse: \Clip.game) var clips: [Clip]
 
@@ -80,9 +82,10 @@ extension Game {
         (isVideoAvailable ? videoFileSize : 0) + clipsStorageBytes
     }
 
-    /// When the launch-time cleanup will delete the full video, if ever.
+    /// When the launch-time cleanup will delete the full video, if ever. Only videos whose
+    /// keep/delete prompt went unanswered expire.
     var videoExpiresAt: Date? {
-        guard isVideoAvailable, let processedAt else { return nil }
+        guard isVideoAvailable, !keepsVideo, let processedAt else { return nil }
         return processedAt.addingTimeInterval(Self.videoRetention)
     }
 }
