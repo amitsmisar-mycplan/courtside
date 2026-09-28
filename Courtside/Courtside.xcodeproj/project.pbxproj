@@ -75,11 +75,11 @@
 /* Begin PBXNativeTarget section */
 		AA0000000000000000000008 /* Courtside */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = AA0000000000000000000015;
+			buildConfigurationList = AA0000000000000000000015 /* Build configuration list for PBXNativeTarget "Courtside" */;
 			buildPhases = (
-				AA000000000000000000000A,
-				AA000000000000000000000B,
-				AA000000000000000000000C,
+				AA000000000000000000000A /* Sources */,
+				AA000000000000000000000B /* Frameworks */,
+				AA000000000000000000000C /* Resources */,
 			);
 			buildRules = (
 			);
@@ -90,16 +90,16 @@
 			);
 			name = Courtside;
 			productName = Courtside;
-			productReference = AA0000000000000000000006;
+			productReference = AA0000000000000000000006 /* Courtside.app */;
 			productType = "com.apple.product-type.application";
 		};
 		AA0000000000000000000009 /* CourtsideTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = AA0000000000000000000018;
+			buildConfigurationList = AA0000000000000000000018 /* Build configuration list for PBXNativeTarget "CourtsideTests" */;
 			buildPhases = (
-				AA000000000000000000000D,
-				AA000000000000000000000E,
-				AA000000000000000000000F,
+				AA000000000000000000000D /* Sources */,
+				AA000000000000000000000E /* Frameworks */,
+				AA000000000000000000000F /* Resources */,
 			);
 			buildRules = (
 			);
@@ -111,7 +111,7 @@
 			);
 			name = CourtsideTests;
 			productName = CourtsideTests;
-			productReference = AA0000000000000000000007;
+			productReference = AA0000000000000000000007 /* CourtsideTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
@@ -133,7 +133,7 @@
 					};
 				};
 			};
-			buildConfigurationList = AA0000000000000000000012;
+			buildConfigurationList = AA0000000000000000000012 /* Build configuration list for PBXProject "Courtside" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -204,19 +204,19 @@
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				COPY_PHASE_STRIP = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				SDKROOT = iphoneos;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
 					"$(inherited)",
 				);
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -230,13 +230,13 @@
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				SDKROOT = iphoneos;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
 				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
