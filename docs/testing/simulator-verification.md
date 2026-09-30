@@ -34,9 +34,31 @@ Test material: 5-minute generated video with a timecode on every frame.
 
 Fixed during the walkthrough: game page briefly laid out in landscape after Done; redundant Cancel on the Keep/Delete alert.
 
+## Full-length run — 2026-09-30, iPhone 17 Simulator
+
+Test material: a 55:35 phone **screen recording of a YouTube stream** of a youth game (1.89 GB, H.264,
+portrait 1080×2316, ~23 fps, no audio). The game fills a band across the middle of the frame; the last minutes are
+YouTube's "More videos" page. Kept private in `~/Documents/Courtside Test Videos/` — not in git, not shared.
+
+| Check | Result |
+|---|---|
+| Import 1.89 GB from Photos | ✅ ~10 s (same-volume clone, so the progress bar barely shows) |
+| Duration and label | ✅ 55:35; label "Game — Sep 10, 2026" from the recording date |
+| 20 marks spread over 0:11–43:20, 12 at 1× then 8 at 2× | ✅ 20 ticks, count 20, Undo shown after each |
+| 2 s debounce | ✅ rapid taps were collapsed (had to pace test taps ≥ 2 s apart) |
+| Extract 20 clips | ✅ 20/20, 0 failures, no partial files left; **7 min 49 s** total (~23 s/clip, software HEVC) |
+| Clip windows and length | ✅ every clip exactly [mark − 10 s, mark + 3 s], 13.00 s |
+| Portrait preserved | ✅ every clip 1080×2316, same framing as source |
+| Each clip contains the tapped moment | ✅ 19/20 matched the source frame at the mark exactly; the 20th is on a static screen (source frames identical ±2 s), so it can't be distinguished — window and duration correct |
+| Keep = forever | ✅ Keep stored `keepsVideo`; game page shows "is kept. Delete…"; no expiry |
+
+**Finding:** portrait videos are tiny in the landscape-locked marking screen — the whole portrait frame is fitted into
+the landscape height, so the game is a small strip. See [open question 3](../status/open-questions.md).
+
 ## Not yet verified
 
-- [ ] Real 60–90 minute game from the stands (import progress on a multi-GB file, 20 marks at 1× and 2×)
+- [ ] Real game **filmed on a phone camera** from the stands (landscape, with audio, 30/60 fps, rotation metadata) — the 2026-09-30 run used a screen recording
+- [ ] Determinate import progress on a slow source (Files app / external drive) — Photos import is a near-instant clone
 - [ ] Save Video to Photos (add-permission prompt appears only on save)
 - [ ] Import from the Files app (security-scoped access)
 - [ ] Insufficient-disk-space message on import
