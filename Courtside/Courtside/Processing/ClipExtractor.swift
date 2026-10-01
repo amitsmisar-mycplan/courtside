@@ -107,7 +107,8 @@ final class ClipExtractor {
                     filename: filename,
                     startSeconds: window.start,
                     endSeconds: window.end,
-                    fileSize: StorageManager.fileSize(at: destination)
+                    fileSize: StorageManager.fileSize(at: destination),
+                    markSeconds: mark.offsetSeconds
                 )
                 context.insert(clip)
                 clip.game = game
@@ -139,9 +140,35 @@ final class ClipExtractor {
         let destination = StorageManager.clipURL(for: clip)
         try await export(source: StorageManager.gameVideoURL(for: game), window: window, to: destination) { _ in }
         StorageManager.removeThumbnail(forClipID: clip.id)
+        // The slow-motion render was cut from the old clip, so it's stale now.
+        StorageManager.removeSlowMoFile(of: clip)
         clip.startSeconds = window.start
         clip.endSeconds = window.end
         clip.fileSize = StorageManager.fileSize(at: destination)
+        try context.save()
+    }
+
+    /// Renders (or re-renders) the clip's slow-motion version. The new file is written before
+    /// the old one is removed, so a failed render leaves the previous version intact.
+    static func renderSlowMo(
+        of clip: Clip,
+        segment: SlowMoSegment,
+        speed: SlowMoSpeed,
+        context: ModelContext,
+        progress: @escaping @MainActor (Double) -> Void
+    ) async throws {
+        let filename = StorageManager.makeSlowMoFilename(clipID: clip.id, speed: speed)
+        let destination = StorageManager.clipURL(filename: filename)
+        let previous = clip.slowMoURL
+        try await exportSlowMo(clipURL: clip.fileURL, segment: segment, speed: speed, to: destination, progress: progress)
+        if let previous, previous != destination {
+            StorageManager.removeFile(at: previous)
+        }
+        clip.slowMoFilename = filename
+        clip.slowMoSpeed = speed.rawValue
+        clip.slowMoStartSeconds = segment.start
+        clip.slowMoEndSeconds = segment.end
+        clip.slowMoFileSize = StorageManager.fileSize(at: destination)
         try context.save()
     }
 

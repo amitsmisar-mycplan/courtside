@@ -178,8 +178,25 @@ enum StorageManager {
         save(context)
     }
 
+    /// Deletes a clip's slow-motion render and clears its fields; the clip itself stays.
+    @MainActor static func deleteSlowMo(of clip: Clip, in context: ModelContext) {
+        removeSlowMoFile(of: clip)
+        save(context)
+    }
+
+    /// Removes the slow-motion file and clears the fields without saving.
+    static func removeSlowMoFile(of clip: Clip) {
+        if let url = clip.slowMoURL { removeFile(at: url) }
+        clip.slowMoFilename = nil
+        clip.slowMoSpeed = nil
+        clip.slowMoStartSeconds = nil
+        clip.slowMoEndSeconds = nil
+        clip.slowMoFileSize = nil
+    }
+
     private static func removeClipFiles(_ clip: Clip) {
         removeFile(at: clipURL(for: clip))
+        if let url = clip.slowMoURL { removeFile(at: url) }
         removeThumbnail(forClipID: clip.id)
     }
 

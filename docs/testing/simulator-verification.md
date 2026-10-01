@@ -55,6 +55,30 @@ YouTube's "More videos" page. Kept private in `~/Documents/Courtside Test Videos
 **Finding:** portrait videos are tiny in the landscape-locked marking screen — the whole portrait frame is fitted into
 the landscape height, so the game is a small strip. See [open question 3](../status/open-questions.md).
 
+## Slow motion — 2026-10-01, iPhone 17 Simulator
+
+Test material: generated games with an on-screen timecode, a moving ball and a 440 Hz tone — 60 fps landscape,
+30 fps portrait, 24 fps (in `~/Documents/Courtside Test Videos/Synthetic/`). Your spec's seven steps:
+
+| # | Check | Result |
+|---|---|---|
+| 1 | 60 fps clip → 0.25× render | ✅ 23.50 s (= 13 − 3.5 + 14); frames land where the math says — 16 s into the render shows the tapped moment; audio tone → **silence** (rms 0.000) through the slow part → tone; landscape transform kept |
+| 2 | 30 fps → 0.25× disabled, 0.5× works | ✅ "This video was recorded at 30 fps, so 0.25× isn't available."; 0.5× render 6.00 s, **portrait rotation identical to source** |
+| 3 | 24 fps → slow mo disabled | ✅ "…24 fps, which doesn't have enough frames for slow motion." No controls, no empty preview |
+| 4 | Drag segment to both clip edges | ✅ clamps to 0.0–13.0 s; dragging clears the stale preview |
+| 5 | Delete clip | ✅ clip file, slow-mo file, thumbnail and row all removed |
+| 6 | Re-render at another speed | ✅ 0.25× → 0.5×: only the new `-slowmo-0.5.mov` remains |
+| 7 | Preview ×10 without rendering | ✅ memory flat at 398–403 MB (one-time +17 MB on first preview for the decoder) |
+
+Also checked: migration of the existing 20-clip store (6 new columns, all rows intact); new clips store `markSeconds`;
+default slow window 8.0–11.5 s centred on the tap; storage totals include slow-mo files; Original / Slow Mo toggle.
+
+**Bugs found and fixed during this run**
+- Slow Mo sheet stuck on "Checking the video…" — the session was never asked to read the frame rate.
+- Rendering a clip that is slowed **end to end with sound** failed ("couldn't be exported"): the audio track would be
+  nothing but silence. Now the render has no audio track in that case. Regression test added.
+- Polish: "Save Slow Mo" label wrapped (now "Save"); empty preview shown at 24 fps; "1 marks" / "1 Clips".
+
 ## Not yet verified
 
 - [ ] Real game **filmed on a phone camera** from the stands (landscape, with audio, 30/60 fps, rotation metadata) — the 2026-09-30 run used a screen recording
@@ -62,3 +86,4 @@ the landscape height, so the game is a small strip. See [open question 3](../sta
 - [ ] Save Video to Photos (add-permission prompt appears only on save)
 - [ ] Import from the Files app (security-scoped access)
 - [ ] Insufficient-disk-space message on import
+- [ ] Slow motion on real phone footage (60 fps with real audio; parent-shot portrait)

@@ -49,17 +49,26 @@ enum SlowMoComposer {
         // The only scale operation: later time ranges shift after a scale, so never compose several.
         video.scaleTimeRange(slowRange, toDuration: stretched)
 
-        if let sourceAudio {
+        // Edge pieces shorter than this are rounding leftovers, not real normal-speed audio.
+        let minimumPiece = CMTime(value: 1, timescale: 30)
+        let hasAudioBefore = slowStart >= minimumPiece
+        let hasAudioAfter = assetDuration - slowEnd >= minimumPiece
+
+        // When the whole clip is slow there's no normal-speed audio left; a track that is only
+        // an empty segment fails to export, so the render simply has no audio track.
+        if let sourceAudio, hasAudioBefore || hasAudioAfter {
             // Scaled audio sounds pitch-shifted and slurred, so it isn't scaled:
             // normal audio, silence for the stretched segment, normal audio.
             guard let audio = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else {
                 throw SlowMoError.couldNotBuild
             }
-            if slowStart > .zero {
+            // Silence runs from the end of the lead-in audio (or zero) to the end of the stretched segment.
+            let silenceStart = hasAudioBefore ? slowStart : .zero
+            if hasAudioBefore {
                 try audio.insertTimeRange(CMTimeRange(start: .zero, end: slowStart), of: sourceAudio, at: .zero)
             }
-            audio.insertEmptyTimeRange(CMTimeRange(start: slowStart, duration: stretched))
-            if slowEnd < assetDuration {
+            audio.insertEmptyTimeRange(CMTimeRange(start: silenceStart, end: slowStart + stretched))
+            if hasAudioAfter {
                 try audio.insertTimeRange(
                     CMTimeRange(start: slowEnd, end: assetDuration),
                     of: sourceAudio,

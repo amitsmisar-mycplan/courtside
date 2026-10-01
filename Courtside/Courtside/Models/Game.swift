@@ -75,7 +75,7 @@ extension Game {
     }
 
     var clipsStorageBytes: Int64 {
-        clips.reduce(0) { $0 + $1.fileSize }
+        clips.reduce(0) { $0 + $1.fileSize + ($1.slowMoFileSize ?? 0) }
     }
 
     var storageBytes: Int64 {

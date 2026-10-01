@@ -80,6 +80,18 @@ final class SlowMoRenderTests: XCTestCase {
         XCTAssertEqual(duration, 6, accuracy: 0.1)
     }
 
+    func testWholeClipSlowedWithAudio() async throws {
+        // Slowing the entire clip leaves no normal-speed audio at all.
+        let clip = work.appending(path: "clip.mov")
+        try await TestMedia.makeVideo(at: clip, seconds: 3, fps: 30, withTone: true)
+        let duration = try await AVURLAsset(url: clip).load(.duration).seconds
+        let segment = SlowMotion.defaultSegment(markInClip: 0, clipDuration: duration)
+        let output = work.appending(path: "slow.mov")
+        try await ClipExtractor.exportSlowMo(clipURL: clip, segment: segment, speed: .half, to: output) { _ in }
+        let outputDuration = try await AVURLAsset(url: output).load(.duration).seconds
+        XCTAssertEqual(outputDuration, duration * 2, accuracy: 0.1)
+    }
+
     func testFrameRateIsReadFromVideoTrack() async throws {
         let clip = work.appending(path: "clip.mov")
         try await TestMedia.makeVideo(at: clip, seconds: 2, fps: 24, withTone: true)
