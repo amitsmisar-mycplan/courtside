@@ -11,3 +11,4 @@ One file per decision that deviates from or extends the spec. Add new ones with 
 | [0005](0005-partial-files-and-orphans.md) | `.partial` files swept on launch; orphans kept for step 7 | Accepted |
 | [0006](0006-marking-ux-details.md) | Touch-down marking, wall-clock debounce, auto-processing | Accepted |
 | [0007](0007-slow-motion.md) | Slow motion: two extra `Clip` fields, frame-rate cutoffs, lifecycle | Accepted |
+| [0008](0008-marking-any-orientation.md) | Playback marking works in either orientation | Accepted |
