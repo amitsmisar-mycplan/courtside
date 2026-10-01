@@ -10,3 +10,4 @@ One file per decision that deviates from or extends the spec. Add new ones with 
 | [0004](0004-video-retention-and-nudge.md) | Deleting the full video disables nudge and re-marking | Accepted — revised: Keep = forever |
 | [0005](0005-partial-files-and-orphans.md) | `.partial` files swept on launch; orphans kept for step 7 | Accepted |
 | [0006](0006-marking-ux-details.md) | Touch-down marking, wall-clock debounce, auto-processing | Accepted |
+| [0007](0007-slow-motion.md) | Slow motion: two extra `Clip` fields, frame-rate cutoffs, lifecycle | Accepted |

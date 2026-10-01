@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-09-28_
+_Last updated: 2026-09-30_
 
 | Step | What | Status |
 |---|---|---|
@@ -14,6 +14,8 @@ _Last updated: 2026-09-28_
 | 8 | Acceptance test | ⏸ Blocked — needs a device |
 
 **Since steps 1–5:** "Keep the full game video" now means keep forever (decision 0004).
+
+**Feature: slow motion** ([spec](../feature-slow-motion.md), [decision 0007](../decisions/0007-slow-motion.md)) — built on `feature/slow-motion`; Simulator verification in [testing](../testing/simulator-verification.md#slow-motion).
 
 **Next action:** founder confirms a device is available → start step 6.
 

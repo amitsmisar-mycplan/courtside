@@ -77,7 +77,7 @@ struct GameDetailView: View {
             }
             HStack(spacing: 12) {
                 Label(Format.duration(game.durationSeconds), systemImage: "clock")
-                Label("\(game.marks.count) marks", systemImage: "flag")
+                Label(game.marks.count == 1 ? "1 mark" : "\(game.marks.count) marks", systemImage: "flag")
                 Label(Format.bytes(game.storageBytes), systemImage: "internaldrive")
             }
             .font(.caption)
@@ -140,7 +140,7 @@ struct GameDetailView: View {
             }
         } else {
             VStack(alignment: .leading, spacing: 8) {
-                Text("\(clips.count) Clips")
+                Text(clips.count == 1 ? "1 Clip" : "\(clips.count) Clips")
                     .font(.headline)
                 LazyVGrid(columns: columns, spacing: 8) {
                     ForEach(clips) { clip in

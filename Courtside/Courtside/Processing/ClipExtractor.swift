@@ -8,6 +8,7 @@ enum ClipExportError: LocalizedError {
     case failed(underlying: Error?)
     case sourceUnavailable
     case cannotNudge
+    case slowMoSegmentsNotContiguous
 
     var errorDescription: String? {
         switch self {
@@ -17,6 +18,8 @@ enum ClipExportError: LocalizedError {
             "The full game video has been deleted, so this clip can't be adjusted."
         case .cannotNudge:
             "The clip can't be adjusted any further in that direction."
+        case .slowMoSegmentsNotContiguous:
+            "The slow-motion version couldn't be put together. Try a slightly different slow section."
         }
     }
 }
@@ -104,7 +107,8 @@ final class ClipExtractor {
                     filename: filename,
                     startSeconds: window.start,
                     endSeconds: window.end,
-                    fileSize: StorageManager.fileSize(at: destination)
+                    fileSize: StorageManager.fileSize(at: destination),
+                    markSeconds: mark.offsetSeconds
                 )
                 context.insert(clip)
                 clip.game = game
@@ -136,9 +140,35 @@ final class ClipExtractor {
         let destination = StorageManager.clipURL(for: clip)
         try await export(source: StorageManager.gameVideoURL(for: game), window: window, to: destination) { _ in }
         StorageManager.removeThumbnail(forClipID: clip.id)
+        // The slow-motion render was cut from the old clip, so it's stale now.
+        StorageManager.removeSlowMoFile(of: clip)
         clip.startSeconds = window.start
         clip.endSeconds = window.end
         clip.fileSize = StorageManager.fileSize(at: destination)
+        try context.save()
+    }
+
+    /// Renders (or re-renders) the clip's slow-motion version. The new file is written before
+    /// the old one is removed, so a failed render leaves the previous version intact.
+    static func renderSlowMo(
+        of clip: Clip,
+        segment: SlowMoSegment,
+        speed: SlowMoSpeed,
+        context: ModelContext,
+        progress: @escaping @MainActor (Double) -> Void
+    ) async throws {
+        let filename = StorageManager.makeSlowMoFilename(clipID: clip.id, speed: speed)
+        let destination = StorageManager.clipURL(filename: filename)
+        let previous = clip.slowMoURL
+        try await exportSlowMo(clipURL: clip.fileURL, segment: segment, speed: speed, to: destination, progress: progress)
+        if let previous, previous != destination {
+            StorageManager.removeFile(at: previous)
+        }
+        clip.slowMoFilename = filename
+        clip.slowMoSpeed = speed.rawValue
+        clip.slowMoStartSeconds = segment.start
+        clip.slowMoEndSeconds = segment.end
+        clip.slowMoFileSize = StorageManager.fileSize(at: destination)
         try context.save()
     }
 
@@ -150,7 +180,31 @@ final class ClipExtractor {
         to destination: URL,
         progress: @escaping @MainActor (Double) -> Void
     ) async throws {
-        let asset = AVURLAsset(url: source)
+        let range = CMTimeRange(
+            start: CMTime(seconds: window.start, preferredTimescale: 600),
+            end: CMTime(seconds: window.end, preferredTimescale: 600)
+        )
+        try await run(asset: AVURLAsset(url: source), timeRange: range, to: destination, progress: progress)
+    }
+
+    /// Renders the slow-motion composition of a clip. Re-encoded, never passthrough.
+    nonisolated static func exportSlowMo(
+        clipURL: URL,
+        segment: SlowMoSegment,
+        speed: SlowMoSpeed,
+        to destination: URL,
+        progress: @escaping @MainActor (Double) -> Void
+    ) async throws {
+        let composition = try await SlowMoComposer.composition(clipURL: clipURL, segment: segment, speed: speed)
+        try await run(asset: composition, timeRange: nil, to: destination, progress: progress)
+    }
+
+    private nonisolated static func run(
+        asset: AVAsset,
+        timeRange: CMTimeRange?,
+        to destination: URL,
+        progress: @escaping @MainActor (Double) -> Void
+    ) async throws {
         guard let created = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetHEVCHighestQuality)
             ?? AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetHighestQuality)
         else {
@@ -164,10 +218,9 @@ final class ClipExtractor {
         session.outputURL = partialURL
         session.outputFileType = .mov
         session.shouldOptimizeForNetworkUse = true
-        session.timeRange = CMTimeRange(
-            start: CMTime(seconds: window.start, preferredTimescale: 600),
-            end: CMTime(seconds: window.end, preferredTimescale: 600)
-        )
+        if let timeRange {
+            session.timeRange = timeRange
+        }
 
         let poller = Task { @MainActor in
             while !Task.isCancelled {
@@ -187,7 +240,12 @@ final class ClipExtractor {
                         case .cancelled:
                             continuation.resume(throwing: CancellationError())
                         default:
-                            continuation.resume(throwing: ClipExportError.failed(underlying: session.error))
+                            let code = (session.error as NSError?)?.code
+                            if code == AVError.Code.compositionTrackSegmentsNotContiguous.rawValue {
+                                continuation.resume(throwing: ClipExportError.slowMoSegmentsNotContiguous)
+                            } else {
+                                continuation.resume(throwing: ClipExportError.failed(underlying: session.error))
+                            }
                         }
                     }
                 }
