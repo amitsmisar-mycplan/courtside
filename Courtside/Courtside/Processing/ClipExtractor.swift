@@ -8,6 +8,7 @@ enum ClipExportError: LocalizedError {
     case failed(underlying: Error?)
     case sourceUnavailable
     case cannotNudge
+    case slowMoSegmentsNotContiguous
 
     var errorDescription: String? {
         switch self {
@@ -17,6 +18,8 @@ enum ClipExportError: LocalizedError {
             "The full game video has been deleted, so this clip can't be adjusted."
         case .cannotNudge:
             "The clip can't be adjusted any further in that direction."
+        case .slowMoSegmentsNotContiguous:
+            "The slow-motion version couldn't be put together. Try a slightly different slow section."
         }
     }
 }
@@ -150,7 +153,31 @@ final class ClipExtractor {
         to destination: URL,
         progress: @escaping @MainActor (Double) -> Void
     ) async throws {
-        let asset = AVURLAsset(url: source)
+        let range = CMTimeRange(
+            start: CMTime(seconds: window.start, preferredTimescale: 600),
+            end: CMTime(seconds: window.end, preferredTimescale: 600)
+        )
+        try await run(asset: AVURLAsset(url: source), timeRange: range, to: destination, progress: progress)
+    }
+
+    /// Renders the slow-motion composition of a clip. Re-encoded, never passthrough.
+    nonisolated static func exportSlowMo(
+        clipURL: URL,
+        segment: SlowMoSegment,
+        speed: SlowMoSpeed,
+        to destination: URL,
+        progress: @escaping @MainActor (Double) -> Void
+    ) async throws {
+        let composition = try await SlowMoComposer.composition(clipURL: clipURL, segment: segment, speed: speed)
+        try await run(asset: composition, timeRange: nil, to: destination, progress: progress)
+    }
+
+    private nonisolated static func run(
+        asset: AVAsset,
+        timeRange: CMTimeRange?,
+        to destination: URL,
+        progress: @escaping @MainActor (Double) -> Void
+    ) async throws {
         guard let created = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetHEVCHighestQuality)
             ?? AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetHighestQuality)
         else {
@@ -164,10 +191,9 @@ final class ClipExtractor {
         session.outputURL = partialURL
         session.outputFileType = .mov
         session.shouldOptimizeForNetworkUse = true
-        session.timeRange = CMTimeRange(
-            start: CMTime(seconds: window.start, preferredTimescale: 600),
-            end: CMTime(seconds: window.end, preferredTimescale: 600)
-        )
+        if let timeRange {
+            session.timeRange = timeRange
+        }
 
         let poller = Task { @MainActor in
             while !Task.isCancelled {
@@ -187,7 +213,12 @@ final class ClipExtractor {
                         case .cancelled:
                             continuation.resume(throwing: CancellationError())
                         default:
-                            continuation.resume(throwing: ClipExportError.failed(underlying: session.error))
+                            let code = (session.error as NSError?)?.code
+                            if code == AVError.Code.compositionTrackSegmentsNotContiguous.rawValue {
+                                continuation.resume(throwing: ClipExportError.slowMoSegmentsNotContiguous)
+                            } else {
+                                continuation.resume(throwing: ClipExportError.failed(underlying: session.error))
+                            }
                         }
                     }
                 }

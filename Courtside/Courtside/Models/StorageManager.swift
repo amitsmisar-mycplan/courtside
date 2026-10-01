@@ -58,6 +58,11 @@ enum StorageManager {
         "\(id.uuidString).mov"
     }
 
+    /// `<clipUUID>-slowmo-<speed>.mov`, alongside the clip in `Clips/`.
+    static func makeSlowMoFilename(clipID: UUID, speed: SlowMoSpeed) -> String {
+        "\(clipID.uuidString)-slowmo-\(speed.fileComponent).mov"
+    }
+
     static func gameVideoURL(filename: String) -> URL {
         gamesDirectory.appending(path: filename, directoryHint: .notDirectory)
     }
