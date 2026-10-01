@@ -7,6 +7,8 @@ struct PlaybackMarkingView: View {
     let modelContext: ModelContext
 
     @Environment(\.dismiss) private var dismiss
+    /// Regular in portrait on iPhone, compact in landscape.
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var session: MarkingSession?
     @State private var flashOpacity = 0.0
     @State private var isTouching = false
@@ -49,7 +51,8 @@ struct PlaybackMarkingView: View {
         }
         .statusBarHidden()
         .persistentSystemOverlays(.hidden)
-        .lockedOrientation(.landscape)
+        // Either orientation: the parent turns the phone to match the video (decision 0008).
+        .lockedOrientation(.allButUpsideDown)
         .onAppear {
             if session == nil {
                 session = MarkingSession(game: game, context: modelContext)
@@ -103,36 +106,35 @@ struct PlaybackMarkingView: View {
     }
 
     private func controlStrip(_ session: MarkingSession) -> some View {
-        HStack(spacing: 18) {
-            Button("Done") {
-                // Rotate back first so the screen underneath never lays out in landscape.
-                OrientationLock.set(.portrait)
-                dismiss()
-            }
-            .font(.headline)
-            Button("Back 10 seconds", systemImage: "gobackward.10") { session.jumpBack() }
-                .labelStyle(.iconOnly)
-            Button(session.isPlaying ? "Pause" : "Play", systemImage: session.isPlaying ? "pause.fill" : "play.fill") {
-                session.togglePlayback()
-            }
-            .labelStyle(.iconOnly)
-            .font(.title2)
-            .frame(width: 32)
-            Text(Format.duration(session.currentTime))
-                .monospacedDigit()
-                .font(.caption)
-            MarkScrubBar(session: session)
-            Text(Format.duration(session.duration))
-                .monospacedDigit()
-                .font(.caption)
-            Button {
-                session.cycleSpeed()
-            } label: {
-                Text(session.speed == 1.5 ? "1.5×" : "\(Int(session.speed))×")
-                    .font(.headline.monospacedDigit())
-                    .frame(width: 44)
-                    .padding(.vertical, 4)
-                    .background(.white.opacity(0.2), in: Capsule())
+        Group {
+            if verticalSizeClass == .regular {
+                // Portrait: too narrow for one row, so the scrub bar gets its own.
+                VStack(spacing: 8) {
+                    HStack(spacing: 10) {
+                        timeLabel(session.currentTime)
+                        MarkScrubBar(session: session)
+                        timeLabel(session.duration)
+                    }
+                    HStack {
+                        doneButton
+                        Spacer()
+                        jumpBackButton(session)
+                        Spacer()
+                        playPauseButton(session)
+                        Spacer()
+                        speedButton(session)
+                    }
+                }
+            } else {
+                HStack(spacing: 18) {
+                    doneButton
+                    jumpBackButton(session)
+                    playPauseButton(session)
+                    timeLabel(session.currentTime)
+                    MarkScrubBar(session: session)
+                    timeLabel(session.duration)
+                    speedButton(session)
+                }
             }
         }
         .foregroundStyle(.white)
@@ -142,6 +144,47 @@ struct PlaybackMarkingView: View {
         // Swallow taps on the strip's background so they don't place marks.
         .contentShape(Rectangle())
         .onTapGesture {}
+    }
+
+    private var doneButton: some View {
+        Button("Done") {
+            // Rotate back first so the screen underneath never lays out in landscape.
+            OrientationLock.set(.portrait)
+            dismiss()
+        }
+        .font(.headline)
+    }
+
+    private func jumpBackButton(_ session: MarkingSession) -> some View {
+        Button("Back 10 seconds", systemImage: "gobackward.10") { session.jumpBack() }
+            .labelStyle(.iconOnly)
+    }
+
+    private func playPauseButton(_ session: MarkingSession) -> some View {
+        Button(session.isPlaying ? "Pause" : "Play", systemImage: session.isPlaying ? "pause.fill" : "play.fill") {
+            session.togglePlayback()
+        }
+        .labelStyle(.iconOnly)
+        .font(.title2)
+        .frame(width: 32)
+    }
+
+    private func timeLabel(_ seconds: Double) -> some View {
+        Text(Format.duration(seconds))
+            .monospacedDigit()
+            .font(.caption)
+    }
+
+    private func speedButton(_ session: MarkingSession) -> some View {
+        Button {
+            session.cycleSpeed()
+        } label: {
+            Text(session.speed == 1.5 ? "1.5×" : "\(Int(session.speed))×")
+                .font(.headline.monospacedDigit())
+                .frame(width: 44)
+                .padding(.vertical, 4)
+                .background(.white.opacity(0.2), in: Capsule())
+        }
     }
 }
 
