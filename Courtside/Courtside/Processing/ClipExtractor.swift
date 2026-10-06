@@ -35,7 +35,7 @@ final class ClipExtractor {
         case cancelled
     }
 
-    private static let log = Logger(subsystem: "Courtside", category: "Extraction")
+    nonisolated private static let log = Logger(subsystem: "Courtside", category: "Extraction")
 
     private(set) var phase: Phase = .idle
     private(set) var total = 0
@@ -196,16 +196,25 @@ final class ClipExtractor {
         progress: @escaping @MainActor (Double) -> Void
     ) async throws {
         let composition = try await SlowMoComposer.composition(clipURL: clipURL, segment: segment, speed: speed)
-        try await run(asset: composition, timeRange: nil, to: destination, progress: progress)
+        do {
+            try await run(asset: composition, timeRange: nil, to: destination, progress: progress)
+        } catch ClipExportError.failed(let underlying) {
+            // Some HEVC encoders reject time-scaled compositions (seen with real phone footage in the
+            // Simulator). A slow-mo clip in H.264 beats no slow-mo clip, so retry once (decision 0009).
+            log.error("HEVC slow-mo export failed, retrying with H.264: \(String(describing: underlying))")
+            await progress(0)
+            try await run(asset: composition, timeRange: nil, to: destination, preset: AVAssetExportPresetHighestQuality, progress: progress)
+        }
     }
 
     private nonisolated static func run(
         asset: AVAsset,
         timeRange: CMTimeRange?,
         to destination: URL,
+        preset: String = AVAssetExportPresetHEVCHighestQuality,
         progress: @escaping @MainActor (Double) -> Void
     ) async throws {
-        guard let created = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetHEVCHighestQuality)
+        guard let created = AVAssetExportSession(asset: asset, presetName: preset)
             ?? AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetHighestQuality)
         else {
             throw ClipExportError.couldNotCreateSession
