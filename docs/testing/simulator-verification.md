@@ -93,7 +93,7 @@ rotation flag). Kept in `~/Documents/Courtside Test Videos/` — not in git. Res
 | 1.5 s video, tap at its end | ✅ one clip covering the whole video (0–1.51 s), no error |
 | Slow mo, 30 fps footage | ✅ 0.5× only, with the 30 fps explanation |
 | Slow mo render, real footage | ❌ → ✅ failed with -16364; fixed by H.264 fallback ([decision 0009](../decisions/0009-slowmo-h264-fallback.md)). DJI and 4K renders: 16.5 s, rotation kept, **real gym audio** before/after, silent during |
-| Slow mo, 1.5 s clip | ⚠️ switched off with "recorded at 26 fps" — the phone shot 30 fps; very short clips under-report. See open question 4 |
+| Slow mo, 1.5 s clip | ⚠️ switched off with "recorded at 26 fps" — the phone shot 30 fps; very short clips under-report. Accepted as is (open question 4) |
 | Incomplete file (`…111052.mp4`, first transfer) | Detected outside the app (no index/`moov` box); the re-sent copy is fine |
 
 **Finding:** none of the parent's footage is 60 fps, so 0.25× never appears with it (phones default to 4K30).
