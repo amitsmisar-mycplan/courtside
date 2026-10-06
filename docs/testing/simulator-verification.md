@@ -79,6 +79,25 @@ default slow window 8.0–11.5 s centred on the tap; storage totals include slow
   nothing but silence. Now the render has no audio track in that case. Regression test added.
 - Polish: "Save Slow Mo" label wrapped (now "Save"); empty preview shown at 24 fps; "1 marks" / "1 Clips".
 
+## Real camera footage — 2026-10-06, iPhone 17 Simulator
+
+17 videos shot Oct 4 (15 phone: 4K landscape ~30 fps with audio, 1.5 s – 4.5 min; 2 DJI: 1080p 30 fps stored sideways with a
+rotation flag). Kept in `~/Documents/Courtside Test Videos/` — not in git. Resulting clips copied to `Clips - Oct 4 test/`.
+
+| Check | Result |
+|---|---|
+| Import 875 MB 4K video | ✅ ~2 s |
+| DJI rotation (stored 1080×1920, shows 1920×1080) | ✅ plays upright in marking, clip player, clips and slow mo |
+| Clip export, DJI 1080p | ✅ 2 clips in 104 s, 30 fps, audio kept |
+| Clip export, phone 4K | ✅ 13 s 4K clip in **120 s** (software HEVC — device will be much faster), 24 MB |
+| 1.5 s video, tap at its end | ✅ one clip covering the whole video (0–1.51 s), no error |
+| Slow mo, 30 fps footage | ✅ 0.5× only, with the 30 fps explanation |
+| Slow mo render, real footage | ❌ → ✅ failed with -16364; fixed by H.264 fallback ([decision 0009](../decisions/0009-slowmo-h264-fallback.md)). DJI and 4K renders: 16.5 s, rotation kept, **real gym audio** before/after, silent during |
+| Slow mo, 1.5 s clip | ⚠️ switched off with "recorded at 26 fps" — the phone shot 30 fps; very short clips under-report. See open question 4 |
+| Incomplete file (`…111052.mp4`, first transfer) | Detected outside the app (no index/`moov` box); the re-sent copy is fine |
+
+**Finding:** none of the parent's footage is 60 fps, so 0.25× never appears with it (phones default to 4K30).
+
 ## Not yet verified
 
 - [ ] Real game **filmed on a phone camera** from the stands (landscape, with audio, 30/60 fps, rotation metadata) — the 2026-09-30 run used a screen recording
@@ -86,4 +105,5 @@ default slow window 8.0–11.5 s centred on the tap; storage totals include slow
 - [ ] Save Video to Photos (add-permission prompt appears only on save)
 - [ ] Import from the Files app (security-scoped access)
 - [ ] Insufficient-disk-space message on import
-- [ ] Slow motion on real phone footage (60 fps with real audio; parent-shot portrait)
+- [x] Slow motion on real phone footage (30 fps, real audio) — 2026-10-06
+- [ ] Slow motion on 60 fps phone footage; whether real iPhones need the H.264 fallback
