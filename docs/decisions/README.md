@@ -13,3 +13,4 @@ One file per decision that deviates from or extends the spec. Add new ones with 
 | [0007](0007-slow-motion.md) | Slow motion: two extra `Clip` fields, frame-rate cutoffs, lifecycle | Accepted |
 | [0008](0008-marking-any-orientation.md) | Playback marking works in either orientation | Accepted |
 | [0009](0009-slowmo-h264-fallback.md) | Slow-mo render falls back to H.264 if HEVC fails | Accepted |
+| [0010](0010-bundle-id.md) | Bundle ID `com.awave.courtside` | Accepted |
