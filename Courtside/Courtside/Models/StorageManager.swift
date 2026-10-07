@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import OSLog
 import SwiftData
@@ -154,8 +155,8 @@ enum StorageManager {
 
     /// Sweeps abandoned partial files and deletes full game videos past their retention window.
     ///
-    /// Complete game videos with no `Game` record are deliberately left alone: step 7 turns
-    /// those into recoverable games, and footage is never deleted without a record saying so.
+    /// Complete game videos with no `Game` record are never deleted here —
+    /// `recoverRecordings(in:)` turns them into games.
     @MainActor static func performLaunchCleanup(in context: ModelContext, now: Date = .now) {
         for directory in [gamesDirectory, clipsDirectory] {
             let contents = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
@@ -192,6 +193,58 @@ enum StorageManager {
         clip.slowMoStartSeconds = nil
         clip.slowMoEndSeconds = nil
         clip.slowMoFileSize = nil
+    }
+
+    /// Turns interrupted recordings back into games, so a crash or force-quit mid-game never
+    /// loses footage: games still at zero length get their real duration, and complete video
+    /// files with no `Game` record get one. Unplayable files are left on disk untouched.
+    @MainActor static func recoverRecordings(in context: ModelContext) async {
+        let games = (try? context.fetch(FetchDescriptor<Game>())) ?? []
+
+        for game in games where game.isVideoAvailable && game.durationSeconds <= 0 {
+            let url = gameVideoURL(for: game)
+            if let duration = await playableDuration(of: url) {
+                game.durationSeconds = duration
+                game.videoFileSize = fileSize(at: url)
+                log.info("Recovered interrupted recording \(game.videoFilename): \(duration)s")
+            } else {
+                log.error("Interrupted recording \(game.videoFilename) isn't playable; leaving it in place")
+            }
+        }
+
+        let known = Set(games.map(\.videoFilename))
+        let files = (try? FileManager.default.contentsOfDirectory(
+            at: gamesDirectory,
+            includingPropertiesForKeys: [.creationDateKey],
+            options: .skipsHiddenFiles
+        )) ?? []
+        for url in files where !known.contains(url.lastPathComponent) && !url.lastPathComponent.contains(partialMarker) {
+            guard let duration = await playableDuration(of: url) else {
+                log.error("Orphaned file \(url.lastPathComponent) isn't playable; leaving it in place")
+                continue
+            }
+            let created = (try? url.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .now
+            let game = Game(
+                label: "Recovered — \(created.formatted(date: .abbreviated, time: .shortened))",
+                recordedAt: created,
+                videoFilename: url.lastPathComponent,
+                durationSeconds: duration,
+                source: .recorded,
+                videoFileSize: fileSize(at: url)
+            )
+            context.insert(game)
+            log.info("Recovered orphaned video \(url.lastPathComponent) as a game")
+        }
+        save(context)
+    }
+
+    private static func playableDuration(of url: URL) async -> Double? {
+        let asset = AVURLAsset(url: url)
+        guard let tracks = try? await asset.loadTracks(withMediaType: .video), !tracks.isEmpty,
+              let duration = try? await asset.load(.duration).seconds,
+              duration.isFinite, duration > 0
+        else { return nil }
+        return duration
     }
 
     private static func removeClipFiles(_ clip: Clip) {

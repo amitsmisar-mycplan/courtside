@@ -13,11 +13,20 @@ enum TestMedia {
         transform: CGAffineTransform = .identity,
         withTone: Bool
     ) async throws {
-        let videoURL = withTone ? url.deletingLastPathComponent().appending(path: "video-\(UUID()).mov") : url
+        guard withTone else {
+            try await writeFrames(to: url, seconds: seconds, fps: fps, transform: transform)
+            return
+        }
+        // Intermediates go to the temp folder, never next to `url` (which may be the app's
+        // Games folder, where launch recovery would treat strays as footage).
+        let scratch = FileManager.default.temporaryDirectory
+        let videoURL = scratch.appending(path: "video-\(UUID()).mov")
+        let audioURL = scratch.appending(path: "tone-\(UUID()).m4a")
+        defer {
+            try? FileManager.default.removeItem(at: videoURL)
+            try? FileManager.default.removeItem(at: audioURL)
+        }
         try await writeFrames(to: videoURL, seconds: seconds, fps: fps, transform: transform)
-        guard withTone else { return }
-
-        let audioURL = url.deletingLastPathComponent().appending(path: "tone-\(UUID()).m4a")
         try writeTone(to: audioURL, seconds: Double(seconds))
 
         // Mux video + audio with a passthrough export.

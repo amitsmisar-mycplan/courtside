@@ -12,6 +12,7 @@ struct GamesListView: View {
     @State private var importRequest: ImportRequest?
     @State private var gamePendingDelete: Game?
     @State private var showSettings = false
+    @State private var showRecording = false
     @State private var pickerError: String?
 
     var body: some View {
@@ -65,6 +66,9 @@ struct GamesListView: View {
         .sheet(isPresented: $showSettings) {
             SettingsView()
         }
+        .fullScreenCover(isPresented: $showRecording) {
+            RecordingView(modelContext: modelContext)
+        }
         .confirmationDialog(
             "Delete this game?",
             isPresented: Binding(get: { gamePendingDelete != nil }, set: { if !$0 { gamePendingDelete = nil } }),
@@ -106,8 +110,7 @@ struct GamesListView: View {
         Menu {
             Button("Import from Photos", systemImage: "photo.on.rectangle") { showPhotosPicker = true }
             Button("Import from Files", systemImage: "folder") { showFileImporter = true }
-            Button("Record Game — Coming soon", systemImage: "video") {}
-                .disabled(true)
+            Button("Record Game", systemImage: "video") { showRecording = true }
         } label: {
             Label("Add Game", systemImage: "plus")
                 .font(.headline)
