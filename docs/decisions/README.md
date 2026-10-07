@@ -14,3 +14,4 @@ One file per decision that deviates from or extends the spec. Add new ones with 
 | [0008](0008-marking-any-orientation.md) | Playback marking works in either orientation | Accepted |
 | [0009](0009-slowmo-h264-fallback.md) | Slow-mo render falls back to H.264 if HEVC fails | Accepted |
 | [0010](0010-bundle-id.md) | Bundle ID `com.awave.courtside` | Accepted |
+| [0011](0011-recording.md) | Recording (step 6) + footage-safety parts of step 7 | Accepted — device test pending |
