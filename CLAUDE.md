@@ -27,7 +27,8 @@ All tests must pass and the build must have zero warnings before committing.
 
 ## Hard rules
 
-- **Build order is gated.** Steps 1–5 are done. **Do not start step 6 (recording) until the founder confirms a device is available.**
+- **Build order.** Steps 1–5 are done. A device is confirmed (2026-10-07, founder's son's iPhone), so step 6 (recording) is unblocked — first install and verify steps 1–5 on the device, then build step 6.
+- Bundle ID is `com.awave.courtside` (decision 0010). The Simulator app ID changed with it, so the old `com.example.courtside` Simulator data is a separate app.
 - iOS 17 minimum, Swift 5 language mode, SwiftUI + SwiftData, iPhone only, **no third-party dependencies**.
 - **Never store absolute file URLs.** Models store relative filenames; `StorageManager` is the only thing that builds URLs.
 - **Ownership:** `ClipExtractor` is the only thing that runs an export; `CaptureSessionController` (step 6) the only thing that touches `AVCaptureSession`.
