@@ -37,6 +37,9 @@ struct ClipPlayerView: View {
                             ProgressView("Adjusting…")
                                 .padding()
                                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+                        } else if looper.playbackFailed {
+                            PlaybackFailedNotice(subject: "clip")
+                                .padding(12)
                         }
                     }
 

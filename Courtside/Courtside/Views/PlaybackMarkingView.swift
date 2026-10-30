@@ -41,6 +41,11 @@ struct PlaybackMarkingView: View {
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
 
+                if session.playbackFailed {
+                    PlaybackFailedNotice(subject: "video")
+                        .padding(24)
+                }
+
                 VStack {
                     topBar(session)
                     Spacer()
