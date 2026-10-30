@@ -85,11 +85,12 @@ struct PlaybackMarkingView: View {
 
     private func topBar(_ session: MarkingSession) -> some View {
         HStack(alignment: .top) {
-            if session.undoableMark != nil {
+            if session.canUndo {
                 Button {
                     session.undoLastMark()
                 } label: {
-                    Label("Undo", systemImage: "arrow.uturn.backward")
+                    Label(session.undo.ids.count > 1 ? "Undo \(session.undo.ids.count)" : "Undo", systemImage: "arrow.uturn.backward")
+                        .monospacedDigit()
                         .font(.headline)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
@@ -107,7 +108,7 @@ struct PlaybackMarkingView: View {
                 .allowsHitTesting(false)
         }
         .foregroundStyle(.white)
-        .animation(.easeInOut(duration: 0.2), value: session.undoableMark != nil)
+        .animation(.easeInOut(duration: 0.2), value: session.canUndo)
     }
 
     private func controlStrip(_ session: MarkingSession) -> some View {

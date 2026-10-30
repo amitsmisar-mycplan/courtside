@@ -201,11 +201,12 @@ struct RecordingView: View {
             }
             Spacer()
             HStack(alignment: .bottom) {
-                if session.undoableMark != nil {
+                if session.canUndo {
                     Button {
                         session.undoLastMark()
                     } label: {
-                        Label("Undo", systemImage: "arrow.uturn.backward")
+                        Label(session.undo.ids.count > 1 ? "Undo \(session.undo.ids.count)" : "Undo", systemImage: "arrow.uturn.backward")
+                            .monospacedDigit()
                             .font(.headline)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
