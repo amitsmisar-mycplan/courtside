@@ -85,16 +85,20 @@ struct ProcessingView: View {
         }
     }
 
+    private var readyTitle: String {
+        "\(extractor.completed) \(extractor.completed == 1 ? "clip" : "clips") ready"
+    }
+
     @ViewBuilder
     private var finished: some View {
         if extractor.failed > 0 {
             summary(
                 icon: "exclamationmark.triangle",
-                title: "\(extractor.completed) clips ready",
+                title: readyTitle,
                 detail: "\(extractor.failed) couldn't be made. You can try again from the game page."
             )
         } else {
-            summary(icon: "checkmark.circle.fill", title: "\(extractor.completed) clips ready", detail: nil)
+            summary(icon: "checkmark.circle.fill", title: readyTitle, detail: nil)
         }
     }
 
