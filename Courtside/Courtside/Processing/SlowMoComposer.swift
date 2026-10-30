@@ -25,6 +25,16 @@ enum SlowMoComposer {
         return try await track.load(.nominalFrameRate)
     }
 
+    /// The clip's size as it appears on screen: the stored size with the track's rotation applied.
+    static func displaySize(of url: URL) async throws -> CGSize {
+        guard let track = try await AVURLAsset(url: url).loadTracks(withMediaType: .video).first else {
+            throw SlowMoError.noVideoTrack
+        }
+        let (size, transform) = try await track.load(.naturalSize, .preferredTransform)
+        let rotated = size.applying(transform)
+        return CGSize(width: abs(rotated.width), height: abs(rotated.height))
+    }
+
     static func composition(clipURL: URL, segment: SlowMoSegment, speed: SlowMoSpeed) async throws -> AVMutableComposition {
         let asset = AVURLAsset(url: clipURL)
         guard let sourceVideo = try await asset.loadTracks(withMediaType: .video).first else {

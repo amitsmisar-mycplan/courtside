@@ -14,3 +14,5 @@ covers playback marking only.
 ## Verified
 Simulator: portrait 1080×2316 video fills the screen in portrait; landscape layout unchanged; taps mark in both.
 Not verified: live rotation mid-playback (couldn't rotate the Simulator from the session) — check on a device.
+
+_The slow-mo preview turns the screen to match the video instead — a deliberate difference, see [0012](0012-slowmo-fullscreen-preview.md)._
