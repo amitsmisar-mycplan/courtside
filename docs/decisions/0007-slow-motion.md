@@ -37,3 +37,5 @@ to export, so the render has no audio track (audibly the same). Edge pieces unde
 Clip player: "Slow Mo" button → sheet (speed buttons with unavailable ones disabled and explained, draggable segment with edge
 handles and a draggable middle, the tap marked in yellow, instant composition preview, size/duration estimate, Save).
 After saving, an Original / Slow Mo toggle; share and the details line follow the selected version.
+
+_Preview changed to full screen with a poster in the sheet — see [0012](0012-slowmo-fullscreen-preview.md)._

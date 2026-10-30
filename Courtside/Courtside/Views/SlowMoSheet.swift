@@ -7,12 +7,13 @@ struct SlowMoSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var session: SlowMoSession?
+    @State private var showPreview = false
 
     var body: some View {
         NavigationStack {
             Group {
                 if let session {
-                    SlowMoEditor(session: session, modelContext: modelContext) { dismiss() }
+                    SlowMoEditor(session: session, modelContext: modelContext, showPreview: $showPreview) { dismiss() }
                 } else {
                     ProgressView()
                 }
@@ -31,13 +32,22 @@ struct SlowMoSheet: View {
             if session == nil { session = SlowMoSession(clip: clip) }
             await session?.load()
         }
-        .onDisappear { session?.tearDown() }
+        .fullScreenCover(isPresented: $showPreview) {
+            if let session { SlowMoPreviewPlayer(session: session) }
+        }
+        // Full-screen preview hides the sheet, which can report a disappear; only a real
+        // dismissal of the sheet releases the player.
+        .onDisappear {
+            guard !showPreview else { return }
+            session?.tearDown()
+        }
     }
 }
 
 private struct SlowMoEditor: View {
     let session: SlowMoSession
     let modelContext: ModelContext
+    @Binding var showPreview: Bool
     let onRendered: () -> Void
 
     var body: some View {
@@ -45,18 +55,7 @@ private struct SlowMoEditor: View {
             VStack(alignment: .leading, spacing: 20) {
                 // No preview area when the frame rate rules slow motion out entirely.
                 if session.frameRate == .loading || !session.availableSpeeds.isEmpty {
-                    PlayerSurface(player: session.player)
-                        .aspectRatio(16 / 9, contentMode: .fit)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay {
-                            if session.isBuildingPreview {
-                                ProgressView().tint(.white)
-                            } else if !session.hasPreview {
-                                Text("Tap Preview to watch it before saving.")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.white.opacity(0.8))
-                            }
-                        }
+                    poster
                 }
 
                 switch session.frameRate {
@@ -138,7 +137,7 @@ private struct SlowMoEditor: View {
 
             HStack(spacing: 12) {
                 Button {
-                    session.preview()
+                    showPreview = true
                 } label: {
                     Label("Preview", systemImage: "play.fill").frame(maxWidth: .infinity)
                 }
@@ -156,6 +155,39 @@ private struct SlowMoEditor: View {
             .controlSize(.large)
             .disabled(session.isRendering)
         }
+    }
+
+    /// A still at the tap, at the clip's real shape; tapping it opens the full-screen preview.
+    private var poster: some View {
+        Button {
+            showPreview = true
+        } label: {
+            ZStack {
+                Color.black
+                if let image = session.poster {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                }
+                if session.frameRate == .loading {
+                    ProgressView().tint(.white)
+                } else {
+                    Label("Preview", systemImage: "play.fill")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                        .background(.black.opacity(0.6), in: Capsule())
+                }
+            }
+            .aspectRatio(session.aspectRatio ?? 16 / 9, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            // Portrait clips would push the controls off screen at full width.
+            .frame(maxWidth: .infinity, maxHeight: 340)
+        }
+        .buttonStyle(.plain)
+        .disabled(session.isRendering || session.availableSpeeds.isEmpty)
+        .accessibilityLabel("Preview full screen")
     }
 
     private var summary: String {
