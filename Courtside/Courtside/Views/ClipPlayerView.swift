@@ -11,6 +11,7 @@ struct ClipPlayerView: View {
     @State private var version: Version = .original
     @State private var showSlowMo = false
     @State private var showTrim = false
+    @State private var exportSession: ClipExportSession?
 
     private enum Version: Hashable {
         case original
@@ -62,12 +63,24 @@ struct ClipPlayerView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.large)
 
+                Button {
+                    looper.pause()
+                    exportSession = ClipExportSession(clipID: clip.id, source: currentURL)
+                } label: {
+                    Label(version == .slowMo ? "Save Slow Mo to Photos" : "Save to Photos", systemImage: "square.and.arrow.down")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+
                 HStack(spacing: 12) {
-                    ShareLink(item: currentURL, preview: SharePreview(clip.game?.displayTitle ?? "Clip")) {
+                    Button {
+                        ShareService.share(currentURL)
+                    } label: {
                         Label("Share", systemImage: "square.and.arrow.up")
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.bordered)
                     Button(role: .destructive) {
                         confirmDelete = true
                     } label: {
@@ -89,6 +102,9 @@ struct ClipPlayerView: View {
             // Rendered, re-rendered, or removed (deleted, or cleared by a trim).
             version = filename == nil ? .original : .slowMo
             looper.load(currentURL)
+        }
+        .sheet(item: $exportSession, onDismiss: { looper.load(currentURL) }) { session in
+            ExportSheet(session: session)
         }
         .sheet(isPresented: $showSlowMo) {
             SlowMoSheet(clip: clip, modelContext: modelContext)
