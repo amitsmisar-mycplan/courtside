@@ -176,6 +176,24 @@ Decision [0015](../decisions/0015-clip-trim.md). Test clip on the 4:28 Oct 4 gam
 | Relaunch | ✅ clip shows 0:01–0:19 · 18 sec with a new thumbnail; the file is 18.02 s |
 | Full game video gone | ✅ Trim disabled: "The full game video was deleted, so this clip can't be trimmed." (flag set briefly in the store, then restored; no file touched) |
 
+## Save to Photos — 2026-10-30, iPhone 17 Simulator
+
+Decision [0016](../decisions/0016-export-to-photos.md).
+
+| Check | Result |
+|---|---|
+| Permission prompt | ✅ add-only, shown on first save before any rendering, with the new usage text |
+| Don't Allow | ✅ "Courtside can't save to Photos" + Open Settings (opens Settings); nothing rendered, no temp file |
+| Vertical, 13 s upright phone clip (9:16, 4K) | ✅ **46 s**; 1080×1920 HEVC, 13.00 s video, audio 0.00–12.96 s; fills the frame, upright |
+| Vertical, 18 s landscape 4K clip | ✅ **70 s**; 1080×1920, video fit to width over a blurred copy, audio 0.00–17.99 s |
+| Original | ✅ ~1 s, the clip file itself (3840×2160), not re-encoded; clip kept |
+| Cancel at 18 % | ✅ back to the format choice; temp folder empty (export + partial gone); nothing added to Photos |
+| Temp files after save | ✅ `tmp/Exports` empty |
+| Sheet label | ✅ Original says "9:16" with a tall icon for an upright clip, "16:9" for landscape |
+
+Simulator encoding is software; a device should be much faster. **Not verified:** device timing, how the saved video looks
+in the Photos app and Instagram/TikTok, audio sync by ear.
+
 ## Not yet verified
 
 - [ ] Real game **filmed on a phone camera** from the stands (landscape, with audio, 30/60 fps, rotation metadata) — the 2026-09-30 run used a screen recording
@@ -185,4 +203,5 @@ Decision [0015](../decisions/0015-clip-trim.md). Test clip on the 4:28 Oct 4 gam
 - [ ] Insufficient-disk-space message on import
 - [x] Slow motion on real phone footage (30 fps, real audio) — 2026-10-06
 - [ ] Slow motion on 60 fps phone footage; whether real iPhones need the H.264 fallback
+- [ ] Save to Photos on a device: vertical export time for a 13 s clip, plays correctly in Photos, audio in sync by ear
 - [ ] Full-screen slow-mo preview on a device: turning to landscape while held upright, and speed change with 60 fps footage

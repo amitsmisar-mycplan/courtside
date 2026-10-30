@@ -23,6 +23,11 @@ enum StorageManager {
         documentsDirectory.appending(path: "Clips", directoryHint: .isDirectory)
     }
 
+    /// Videos rendered for posting. Temporary: removed once saved, and swept on launch.
+    static var exportsDirectory: URL {
+        FileManager.default.temporaryDirectory.appending(path: "Exports", directoryHint: .isDirectory)
+    }
+
     static var thumbnailsDirectory: URL {
         FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appending(path: "Thumbnails", directoryHint: .isDirectory)
@@ -30,7 +35,7 @@ enum StorageManager {
 
     /// Creates the directories and excludes game/clip storage from iCloud backup.
     static func prepareDirectories() {
-        for directory in [gamesDirectory, clipsDirectory, thumbnailsDirectory] {
+        for directory in [gamesDirectory, clipsDirectory, thumbnailsDirectory, exportsDirectory] {
             do {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             } catch {
@@ -53,6 +58,17 @@ enum StorageManager {
 
     static func makeGameVideoFilename(id: UUID, fileExtension: String) -> String {
         "\(id.uuidString).\(fileExtension)"
+    }
+
+    /// A new temporary file for an export, e.g. `<clip>-vertical-<random>.mov`.
+    static func makeExportURL(clipID: UUID, format: ExportFormat) -> URL {
+        exportsDirectory.appending(path: "\(clipID.uuidString)-\(format.rawValue)-\(UUID().uuidString.prefix(8)).mov")
+    }
+
+    /// Removes a temporary export, and its partial file if one was left.
+    static func removeExport(at url: URL) {
+        removeFile(at: url)
+        removeFile(at: partialURL(for: url))
     }
 
     static func makeClipFilename(id: UUID) -> String {
@@ -169,7 +185,7 @@ enum StorageManager {
         removeFile(at: thumbnailURL(forClipID: id))
     }
 
-    /// Sweeps abandoned partial files and deletes full game videos past their retention window.
+    /// Sweeps abandoned partial files and leftover exports, and deletes full game videos past their retention window.
     ///
     /// Complete game videos with no `Game` record are never deleted here —
     /// `recoverRecordings(in:)` turns them into games.
@@ -180,6 +196,12 @@ enum StorageManager {
                 log.info("Removing abandoned partial file \(url.lastPathComponent)")
                 removeFile(at: url)
             }
+        }
+
+        // Exports are only kept until saved; anything still here was interrupted.
+        for url in (try? FileManager.default.contentsOfDirectory(at: exportsDirectory, includingPropertiesForKeys: nil)) ?? [] {
+            log.info("Removing leftover export \(url.lastPathComponent)")
+            removeFile(at: url)
         }
 
         let games = (try? context.fetch(FetchDescriptor<Game>())) ?? []

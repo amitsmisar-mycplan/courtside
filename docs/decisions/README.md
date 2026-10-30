@@ -19,3 +19,4 @@ One file per decision that deviates from or extends the spec. Add new ones with 
 | [0013](0013-game-library.md) | Game library: opponent, score, notes; name and opponent both kept | Accepted |
 | [0014](0014-undo-stack-and-clip-delete.md) | Repeatable Undo by mark ID; delete clips by swipe or selection | Accepted |
 | [0015](0015-clip-trim.md) | Trim a clip: 30 s before / 15 s after the tap, re-cut through ClipExtractor; replaces nudge | Accepted |
+| [0016](0016-export-to-photos.md) | Save to Photos: Original or Vertical 9:16 with blurred background; same preset | Accepted |

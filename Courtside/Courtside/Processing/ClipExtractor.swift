@@ -218,9 +218,21 @@ final class ClipExtractor {
         }
     }
 
+    /// Renders a clip for posting (vertical layout, later watermark and end card) to `destination`.
+    /// Same preset as every other export; cancelling removes the partial file.
+    nonisolated static func exportForSharing(
+        _ plan: ExportPlan,
+        to destination: URL,
+        progress: @escaping @MainActor (Double) -> Void
+    ) async throws {
+        let output = try await ExportComposer.build(plan)
+        try await run(asset: output.asset, timeRange: nil, videoComposition: output.videoComposition, to: destination, progress: progress)
+    }
+
     private nonisolated static func run(
         asset: AVAsset,
         timeRange: CMTimeRange?,
+        videoComposition: AVVideoComposition? = nil,
         to destination: URL,
         preset: String = AVAssetExportPresetHEVCHighestQuality,
         progress: @escaping @MainActor (Double) -> Void
@@ -240,6 +252,9 @@ final class ClipExtractor {
         session.shouldOptimizeForNetworkUse = true
         if let timeRange {
             session.timeRange = timeRange
+        }
+        if let videoComposition {
+            session.videoComposition = videoComposition
         }
 
         let poller = Task { @MainActor in
