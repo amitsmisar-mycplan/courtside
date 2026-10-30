@@ -109,6 +109,29 @@ rotation flag). Kept in `~/Documents/Courtside Test Videos/` — not in git. Res
 | Simulator lost its audio device (error -66680 → AVPlayer -11800/-12746) | Black marking screen with a *pause* button, no message. Simulator-only; fixed by restarting the Simulator |
 | Same failure, after the fix | ✅ "This video can't be played right now — Nothing has been deleted…"; taps don't place marks. Checked with a broken stand-in file; the real video was set aside and restored |
 
+## Full-screen slow-mo preview — 2026-10-30, iPhone 17 Simulator
+
+Decision [0012](../decisions/0012-slowmo-fullscreen-preview.md). Footage from `Test Clips Oct 30` (not in git), one
+clip each. Note: `DJI_20261004_103320_13` is stored 1080×1920 with a 90° rotation tag, so it *shows* landscape; the
+portrait cases are `20261007_165634` (phone, shows 2160×3840) and `DJI_20261007_173820_19` (1080×1920, no rotation).
+
+| Check | Result |
+|---|---|
+| Poster in the sheet | ✅ frame at the tap, real shape: portrait posters tall (height capped), landscape 16:9 |
+| Portrait phone clip (`20261007_165634`) | ✅ stays portrait, fills the width edge to edge, no letterbox |
+| 6.4 s portrait DJI clip (`…173820_19`) | ✅ fills portrait; slow part 1.3–4.8 s so it starts from 0; loops (10 s output, still playing 13 s later from the start) |
+| 4K landscape (`20261004_130544`) | ✅ screen turns to landscape by itself, fits without cropping; back to portrait on close |
+| Rotation-tagged DJI (`…103320_13`) | ✅ treated as landscape, upright |
+| Tap to pause / resume | ✅ portrait and landscape; pause symbol stays while paused |
+| Close → editor | ✅ speed, slow part, everything unchanged |
+| Reopen, same settings | ✅ instant (same item), restarts before the slow part |
+| Change the slow part, reopen | ✅ new composition plays the new segment |
+| Change speed | Not possible on this footage (all 30 fps → 0.5× only); covered by `SlowMoPreviewTests` with a 60 fps clip |
+| Memory across opens (4K clip, `footprint`) | 104 MB before → 121 MB after 5 opens → 133 MB after 5 rebuilds → **123 MB after 15**; 121 MB with the sheet closed. Flat — no growth per open |
+
+One preview tap in the very first session didn't pause; not reproduced in later tries (several first taps worked). The
+Simulator's screenshots lag the screen by a moment, which explained a similar "missed" mark tap. Watch for it on the device.
+
 ## Not yet verified
 
 - [ ] Real game **filmed on a phone camera** from the stands (landscape, with audio, 30/60 fps, rotation metadata) — the 2026-09-30 run used a screen recording
@@ -118,3 +141,4 @@ rotation flag). Kept in `~/Documents/Courtside Test Videos/` — not in git. Res
 - [ ] Insufficient-disk-space message on import
 - [x] Slow motion on real phone footage (30 fps, real audio) — 2026-10-06
 - [ ] Slow motion on 60 fps phone footage; whether real iPhones need the H.264 fallback
+- [ ] Full-screen slow-mo preview on a device: turning to landscape while held upright, and speed change with 60 fps footage

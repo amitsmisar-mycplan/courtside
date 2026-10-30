@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-10-07_
+_Last updated: 2026-10-30_
 
 | Step | What | Status |
 |---|---|---|
@@ -16,6 +16,8 @@ _Last updated: 2026-10-07_
 **Since steps 1–5:** "Keep the full game video" now means keep forever (decision 0004).
 
 **Feature: slow motion** ([spec](../feature-slow-motion.md), [decision 0007](../decisions/0007-slow-motion.md)) — built on `feature/slow-motion`; Simulator verification in [testing](../testing/simulator-verification.md#slow-motion).
+
+**Slow-mo preview** now plays full screen, looping, turned to match the video, with a poster in the sheet ([0012](../decisions/0012-slowmo-fullscreen-preview.md)) — built on `feature/slowmo-fullscreen-preview`, Simulator-verified.
 
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
