@@ -12,7 +12,8 @@ struct ImportRequest: Identifiable {
     let source: Source
 }
 
-/// Copies the picked video with progress, creates the `Game`, then lets the parent edit its label.
+/// Copies the picked video with progress and creates the `Game`, then offers a quick, skippable
+/// opponent field. The game already exists by then; details never hold up the import.
 struct ImportFlowView: View {
     let request: ImportRequest
     let modelContext: ModelContext
@@ -21,13 +22,14 @@ struct ImportFlowView: View {
 
     private enum Phase {
         case importing
-        case naming(Game)
+        case details(Game)
         case failed(String)
     }
 
     @State private var phase: Phase = .importing
     @State private var progress: Double = 0
-    @State private var label = ""
+    @State private var opponent = ""
+    @FocusState private var opponentFocused: Bool
     @State private var importTask: Task<Void, Never>?
 
     var body: some View {
@@ -61,14 +63,19 @@ struct ImportFlowView: View {
             }
             .padding(32)
             .frame(maxHeight: .infinity)
-        case .naming(let game):
+        case .details(let game):
             Form {
-                Section("Label") {
-                    TextField("Label", text: $label)
+                Section {
+                    TextField("Opponent", text: $opponent)
+                        .textInputAutocapitalization(.words)
                         .submitLabel(.done)
+                        .focused($opponentFocused)
                         .onSubmit { save(game) }
+                } footer: {
+                    Text("Optional. Add the score and notes any time from the game page.")
                 }
                 Section {
+                    LabeledContent("Date", value: game.recordedAt.formatted(date: .abbreviated, time: .shortened))
                     LabeledContent("Length", value: Format.duration(game.durationSeconds))
                     LabeledContent("Size", value: Format.bytes(game.videoFileSize))
                 }
@@ -92,7 +99,10 @@ struct ImportFlowView: View {
                     dismiss()
                 }
             }
-        case .naming(let game):
+        case .details(let game):
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Later") { dismiss() }
+            }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") { save(game) }
             }
@@ -106,7 +116,7 @@ struct ImportFlowView: View {
     private var title: String {
         switch phase {
         case .importing: "Importing"
-        case .naming: "Name This Game"
+        case .details: "Who Did They Play?"
         case .failed: "Import"
         }
     }
@@ -129,7 +139,7 @@ struct ImportFlowView: View {
                 let recordedAt = video.createdAt ?? .now
                 let game = Game(
                     id: video.gameID,
-                    label: Game.defaultLabel(for: recordedAt),
+                    label: "",
                     recordedAt: recordedAt,
                     videoFilename: video.filename,
                     durationSeconds: video.durationSeconds,
@@ -138,8 +148,8 @@ struct ImportFlowView: View {
                 )
                 context.insert(game)
                 try context.save()
-                label = game.label
-                phase = .naming(game)
+                phase = .details(game)
+                opponentFocused = true
             } catch {
                 guard !Task.isCancelled, !(error is CancellationError) else { return }
                 phase = .failed(error.localizedDescription)
@@ -148,9 +158,9 @@ struct ImportFlowView: View {
     }
 
     private func save(_ game: Game) {
-        let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmed.isEmpty {
-            game.label = trimmed
+        let name = opponent.trimmed
+        if !name.isEmpty {
+            game.opponent = name
             try? modelContext.save()
         }
         dismiss()

@@ -69,7 +69,7 @@ struct ClipPlayerView: View {
                 .disabled(isExporting)
 
                 HStack(spacing: 12) {
-                    ShareLink(item: currentURL, preview: SharePreview(clip.game?.label ?? "Clip")) {
+                    ShareLink(item: currentURL, preview: SharePreview(clip.game?.displayTitle ?? "Clip")) {
                         Label("Share", systemImage: "square.and.arrow.up")
                             .frame(maxWidth: .infinity)
                     }

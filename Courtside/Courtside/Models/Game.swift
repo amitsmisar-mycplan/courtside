@@ -16,7 +16,9 @@ enum GameSource: String, Codable {
 
 @Model final class Game {
     var id: UUID
+    /// Optional free-text name. Empty for new games; rows fall back to the opponent, then "Untitled game".
     var label: String
+    /// When the game was played: the video's creation date on import, the start time when recording. Editable.
     var recordedAt: Date
     /// Relative filename only. Rebuild the URL through `StorageManager`.
     var videoFilename: String
@@ -31,6 +33,11 @@ enum GameSource: String, Codable {
     var processedAt: Date?
     /// The parent answered "Keep" to the full-video prompt, so it's never auto-deleted.
     var keepsVideo: Bool = false
+    /// Game details, all optional and filled in whenever the parent gets to it (decision 0013).
+    var opponent: String?
+    var ourScore: Int?
+    var theirScore: Int?
+    var notes: String?
     @Relationship(deleteRule: .cascade, inverse: \Mark.game) var marks: [Mark]
     @Relationship(deleteRule: .cascade, inverse: \Clip.game) var clips: [Clip]
 
@@ -61,8 +68,20 @@ enum GameSource: String, Codable {
 extension Game {
     static let videoRetention: TimeInterval = 7 * 24 * 60 * 60
 
-    static func defaultLabel(for date: Date) -> String {
-        "Game — \(date.formatted(date: .abbreviated, time: .omitted))"
+    static let untitled = "Untitled game"
+
+    /// Row and screen title: "vs <opponent>", else the name, else "Untitled game".
+    var displayTitle: String {
+        if let opponent = opponent?.trimmed, !opponent.isEmpty { return "vs \(opponent)" }
+        let name = label.trimmed
+        return name.isEmpty ? Self.untitled : name
+    }
+
+    /// "54–48" (us first), with "?" for a side not entered yet; nil when neither is set.
+    var scoreText: String? {
+        guard ourScore != nil || theirScore != nil else { return nil }
+        let side = { (score: Int?) in score.map(String.init) ?? "?" }
+        return "\(side(ourScore))–\(side(theirScore))"
     }
 
     /// Marks that don't have a clip yet.
@@ -88,4 +107,8 @@ extension Game {
         guard isVideoAvailable, !keepsVideo, let processedAt else { return nil }
         return processedAt.addingTimeInterval(Self.videoRetention)
     }
+}
+
+extension String {
+    var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
 }
