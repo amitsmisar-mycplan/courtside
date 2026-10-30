@@ -6,7 +6,7 @@ struct ClipWindow: Equatable {
     static let defaultPostRoll: Double = 3
     static let preRollRange: ClosedRange<Double> = 5...20
     static let postRollRange: ClosedRange<Double> = 0...10
-    /// Shorter windows aren't worth exporting (and nudging below this is refused).
+    /// Shorter windows aren't worth exporting.
     static let minimumDuration: Double = 1
 
     let start: Double
@@ -28,15 +28,46 @@ struct ClipWindow: Equatable {
         let end = min(duration, mark + max(0, postRoll))
         return ClipWindow(start: start, end: end)
     }
+}
 
-    /// Shift either edge, clamped to the game. Nil when the result is unchanged or too short.
-    func nudged(startBy startDelta: Double, endBy endDelta: Double, gameDuration: Double) -> ClipWindow? {
-        let duration = max(0, gameDuration)
-        let newStart = min(max(start + startDelta, 0), duration)
-        let newEnd = min(max(end + endDelta, 0), duration)
-        let result = ClipWindow(start: newStart, end: newEnd)
-        guard result != self, result.isExtractable else { return nil }
-        return result
+/// Trimming an existing clip (decision 0015): how far the edges may go, relative to the tap.
+extension ClipWindow {
+    /// Furthest the start may reach before the tap, and the end after it.
+    static let trimMaxBeforeMark: Double = 30
+    static let trimMaxAfterMark: Double = 15
+    /// Shortest clip a trim may leave.
+    static let trimMinimumDuration: Double = 2
+
+    enum Edge { case start, end }
+
+    /// The range a trim may cover: `[mark - 30, mark + 15]`, clamped to the source video. Widened
+    /// to include `current`, so a clip made under older rules is never forced shorter.
+    static func trimBounds(mark: Double, gameDuration: Double, current: ClipWindow) -> ClipWindow {
+        let duration = gameDuration.isFinite ? max(0, gameDuration) : 0
+        let lower = min(max(0, mark - trimMaxBeforeMark), max(0, current.start))
+        let upper = max(min(duration, mark + trimMaxAfterMark), min(duration, current.end))
+        return ClipWindow(start: lower, end: upper)
+    }
+
+    /// Moves one edge to `seconds`, kept inside `bounds` and at least `trimMinimumDuration`
+    /// from the other edge. If the bounds themselves are shorter than that, the whole bounds.
+    func trimming(_ edge: Edge, to seconds: Double, within bounds: ClipWindow) -> ClipWindow {
+        let minimum = Self.trimMinimumDuration
+        guard bounds.duration > minimum else { return bounds }
+        let value = seconds.isFinite ? seconds : (edge == .start ? start : end)
+        switch edge {
+        case .start:
+            let end = min(max(self.end, bounds.start + minimum), bounds.end)
+            return ClipWindow(start: min(max(value, bounds.start), end - minimum), end: end)
+        case .end:
+            let start = max(min(self.start, bounds.end - minimum), bounds.start)
+            return ClipWindow(start: start, end: max(min(value, bounds.end), start + minimum))
+        }
+    }
+
+    /// "Reset to default window": 10 s before the tap, 3 s after, clamped to the source video.
+    static func defaultTrim(mark: Double, gameDuration: Double) -> ClipWindow {
+        around(mark: mark, preRoll: defaultPreRoll, postRoll: defaultPostRoll, gameDuration: gameDuration)
     }
 }
 

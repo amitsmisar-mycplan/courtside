@@ -161,6 +161,21 @@ Decision [0014](../decisions/0014-undo-stack-and-clip-delete.md).
 Simulator note: taps sent within ~1 s of a screen appearing, or right after a relaunch, are sometimes dropped by the
 Simulator's input connection. Pace scripted taps; check on a device.
 
+## Trim a clip — 2026-10-30, iPhone 17 Simulator
+
+Decision [0015](../decisions/0015-clip-trim.md). Test clip on the 4:28 Oct 4 game: tap at 0:11.8, clip 0:01.8–0:14.8.
+
+| Check | Result |
+|---|---|
+| Trim screen | ✅ frame strip 0:00–0:26.8 (30 s before the tap clamped to the video start; 15 s after), handles, tap line, "13.0 sec", "10.0 s before · 3.0 s after"; Save and Reset off until something changes |
+| Drag past the start / end | ✅ stops at 0:00 and at tap + 15 s → 26.8 s |
+| Drag the end onto the start | ✅ stops at 2.0 sec |
+| Dragging exports nothing | ✅ clip file unchanged (size and date), no `.partial` file |
+| Reset to Default | ✅ back to 10 s / 3 s; Save off again |
+| Save (end +5 s) | ✅ progress bar, Cancel off; ~3.5 min for 4K in the Simulator. Range 0:01.8–0:19.8, tap unchanged, same filename, 25.9 → 35.7 MB, file count unchanged, no `.partial` |
+| Relaunch | ✅ clip shows 0:01–0:19 · 18 sec with a new thumbnail; the file is 18.02 s |
+| Full game video gone | ✅ Trim disabled: "The full game video was deleted, so this clip can't be trimmed." (flag set briefly in the store, then restored; no file touched) |
+
 ## Not yet verified
 
 - [ ] Real game **filmed on a phone camera** from the stands (landscape, with audio, 30/60 fps, rotation metadata) — the 2026-09-30 run used a screen recording

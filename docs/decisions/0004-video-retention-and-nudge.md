@@ -13,6 +13,7 @@ Nudge trim re-exports from the full game video, and "add more marks" plays it. T
   - **Unanswered** (app closed before choosing): the launch-time cleanup deletes it 7 days after `processedAt`.
 - A kept video can be deleted later from the game page ("Delete…" next to the video status).
 - When the full video is gone, nudge and "Mark More Plays" are disabled, with an explanation on screen.
+  (Nudge is now the trim screen, [0015](0015-clip-trim.md); the same rule applies.)
 - For imported games, the prompt notes the original is still in Photos (display-only use of `source`).
 
 ## Consequences

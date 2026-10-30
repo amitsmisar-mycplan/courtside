@@ -20,8 +20,9 @@
 - The game page's clip grid became a list (a grid can't swipe or multi-select): thumbnail, clip times, length, slow-mo tag.
 - **Swipe** a clip → Delete. **Select** → tick clips → Delete. One clip goes straight away; **more than one asks first**.
 - Files go only through `StorageManager.deleteClips`: the clip video, its slow-mo render and its thumbnail.
-- The marks behind deleted clips stay (they're the record of the tap; deleting the game removes them). They don't come
-  back as clips.
+- ~~The marks behind deleted clips stay.~~ Changed 2026-10-30: deleting a clip also deletes the mark it was made from
+  (matched by the clip's stored tap time), so the game's mark count matches its clips. Clips made before the tap time was
+  stored (pre-0007) have no reliable match and keep their mark.
 
 ## Verified
 Unit tests: tap 5 / undo 3 leaves the right 2 marks for a recorded game and an imported game (out-of-order taps); the stack

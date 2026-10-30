@@ -113,16 +113,16 @@ final class SlowMoLifecycleTests: XCTestCase {
         XCTAssertFalse(StorageManager.fileExists(at: slowURL))
     }
 
-    func testNudgeRemovesStaleSlowMo() async throws {
+    func testTrimRemovesStaleSlowMo() async throws {
         let (_, clip) = try await makeGameAndClip()
         try await ClipExtractor.renderSlowMo(of: clip, segment: SlowMoSegment(start: 2, end: 5.5), speed: .half, context: context) { _ in }
         let slowURL = try XCTUnwrap(clip.slowMoURL)
 
-        try await ClipExtractor.nudge(clip, startBy: -1, endBy: 0, context: context)
+        try await ClipExtractor.trim(clip, to: ClipWindow(start: 1, end: 8), context: context) { _ in }
 
         XCTAssertEqual(clip.startSeconds, 1)
         XCTAssertFalse(StorageManager.fileExists(at: slowURL))
         XCTAssertNil(clip.slowMoFilename)
-        XCTAssertEqual(clip.markInClip, 5, "mark stays on the same game moment after a nudge")
+        XCTAssertEqual(clip.markInClip, 5, "mark stays on the same game moment after a trim")
     }
 }

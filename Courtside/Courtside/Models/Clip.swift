@@ -52,6 +52,13 @@ extension Clip {
         return min(max(mark, 0), duration)
     }
 
+    /// The tap, in game-video seconds. Clips made before `markSeconds` was stored infer it.
+    var markTime: Double { markSeconds ?? startSeconds + markInClip }
+
+    /// The clip as the tap plus offsets (decision 0015): seconds kept before and after the tap.
+    var secondsBeforeMark: Double { markTime - startSeconds }
+    var secondsAfterMark: Double { endSeconds - markTime }
+
     var hasSlowMo: Bool { slowMoFilename != nil }
 
     var slowMoURL: URL? { slowMoFilename.map(StorageManager.clipURL(filename:)) }
