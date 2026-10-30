@@ -7,18 +7,17 @@ struct ClipPlayerView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var looper = LoopingClipPlayer()
-    @State private var isExporting = false
-    @State private var errorMessage: String?
     @State private var confirmDelete = false
     @State private var version: Version = .original
     @State private var showSlowMo = false
+    @State private var showTrim = false
 
     private enum Version: Hashable {
         case original
         case slowMo
     }
 
-    private var canNudge: Bool { clip.game?.isVideoAvailable == true && !isExporting }
+    private var canTrim: Bool { clip.game?.isVideoAvailable == true }
 
     /// The file being played, shared, and described: the slow-mo render when selected.
     private var currentURL: URL {
@@ -33,11 +32,7 @@ struct ClipPlayerView: View {
                     .aspectRatio(16 / 9, contentMode: .fit)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .overlay {
-                        if isExporting {
-                            ProgressView("Adjusting…")
-                                .padding()
-                                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
-                        } else if looper.playbackFailed {
+                        if looper.playbackFailed {
                             PlaybackFailedNotice(subject: "clip")
                                 .padding(12)
                         }
@@ -56,7 +51,7 @@ struct ClipPlayerView: View {
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
 
-                nudgeControls
+                trimControl
 
                 Button {
                     showSlowMo = true
@@ -66,7 +61,6 @@ struct ClipPlayerView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
-                .disabled(isExporting)
 
                 HStack(spacing: 12) {
                     ShareLink(item: currentURL, preview: SharePreview(clip.game?.displayTitle ?? "Clip")) {
@@ -83,7 +77,6 @@ struct ClipPlayerView: View {
                     .buttonStyle(.bordered)
                 }
                 .controlSize(.large)
-                .disabled(isExporting)
             }
             .padding()
         }
@@ -93,12 +86,18 @@ struct ClipPlayerView: View {
         .onDisappear { looper.pause() }
         .onChange(of: version) { looper.load(currentURL) }
         .onChange(of: clip.slowMoFilename) { _, filename in
-            // Rendered, re-rendered, or removed (deleted, or cleared by a nudge).
+            // Rendered, re-rendered, or removed (deleted, or cleared by a trim).
             version = filename == nil ? .original : .slowMo
             looper.load(currentURL)
         }
         .sheet(isPresented: $showSlowMo) {
             SlowMoSheet(clip: clip, modelContext: modelContext)
+        }
+        .sheet(isPresented: $showTrim, onDismiss: {
+            // A saved trim replaced the file in place; read it fresh.
+            looper.load(currentURL)
+        }) {
+            TrimView(clip: clip, modelContext: modelContext)
         }
         .confirmationDialog(
             clip.hasSlowMo ? "Delete what?" : "Delete this clip?",
@@ -116,59 +115,25 @@ struct ClipPlayerView: View {
                 dismiss()
             }
         }
-        .alert("Couldn't adjust clip", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(errorMessage ?? "")
-        }
     }
 
-    private var nudgeControls: some View {
-        VStack(spacing: 10) {
-            nudgeRow(title: "Start", earlier: { nudge(start: -1) }, later: { nudge(start: 1) })
-            nudgeRow(title: "End", earlier: { nudge(end: -1) }, later: { nudge(end: 1) })
-            if clip.game?.isVideoAvailable != true {
-                Text("The full game video was deleted, so this clip's timing can't be adjusted.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else if clip.hasSlowMo {
-                Text("Adjusting the timing removes the slow-mo version; you can make it again after.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+    /// Opens the trim editor, or says why it can't.
+    @ViewBuilder
+    private var trimControl: some View {
+        Button {
+            looper.pause()
+            showTrim = true
+        } label: {
+            Label("Trim", systemImage: "timeline.selection")
+                .frame(maxWidth: .infinity)
         }
-        .disabled(!canNudge)
-    }
-
-    private func nudgeRow(title: String, earlier: @escaping () -> Void, later: @escaping () -> Void) -> some View {
-        HStack {
-            Text(title)
-                .font(.headline)
-                .frame(width: 56, alignment: .leading)
-            Button(action: earlier) {
-                Label("1 sec earlier", systemImage: "backward.frame")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            Button(action: later) {
-                Label("1 sec later", systemImage: "forward.frame")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-        }
-    }
-
-    private func nudge(start: Double = 0, end: Double = 0) {
-        isExporting = true
-        looper.pause()
-        Task {
-            do {
-                try await ClipExtractor.nudge(clip, startBy: start, endBy: end, context: modelContext)
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-            looper.load(currentURL)
-            isExporting = false
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+        .disabled(!canTrim)
+        if clip.game?.isVideoAvailable != true {
+            Text("The full game video was deleted, so this clip can't be trimmed.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 

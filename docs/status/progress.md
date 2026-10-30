@@ -25,6 +25,10 @@ buttons ([0013](../decisions/0013-game-library.md)). Built on `feature/game-libr
 **Feature: undo mis-taps and delete clips** — repeatable Undo by mark ID in both marking screens; clip list with swipe and
 multi-select delete ([0014](../decisions/0014-undo-stack-and-clip-delete.md)). Built on `feature/undo-and-clip-delete`.
 
+**Feature: trim a clip** — trim screen with handles over the surrounding game video, 30 s before / 15 s after the tap,
+2 s minimum, reset to 10/3, re-cut through `ClipExtractor`; replaces nudge ([0015](../decisions/0015-clip-trim.md)).
+Built on `feature/clip-trim`.
+
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).

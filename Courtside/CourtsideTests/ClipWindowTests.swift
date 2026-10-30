@@ -60,24 +60,52 @@ final class ClipWindowTests: XCTestCase {
         XCTAssertEqual(window(100, pre: 5, post: 0, duration: game), ClipWindow(start: 95, end: 100))
     }
 
-    // MARK: Nudge
+    // MARK: Trim
 
-    func testNudgeStartEarlier() {
-        let w = ClipWindow(start: 590, end: 603)
-        XCTAssertEqual(w.nudged(startBy: -1, endBy: 0, gameDuration: game), ClipWindow(start: 589, end: 603))
+    func testTrimBoundsAreThirtyBeforeAndFifteenAfterTheTap() {
+        let current = ClipWindow(start: 590, end: 603)
+        XCTAssertEqual(ClipWindow.trimBounds(mark: 600, gameDuration: game, current: current), ClipWindow(start: 570, end: 615))
     }
 
-    func testNudgeClampsAtEdges() {
-        XCTAssertEqual(
-            ClipWindow(start: 0.5, end: 10).nudged(startBy: -1, endBy: 0, gameDuration: game),
-            ClipWindow(start: 0, end: 10)
-        )
-        XCTAssertNil(ClipWindow(start: 0, end: 10).nudged(startBy: -1, endBy: 0, gameDuration: game))
-        XCTAssertNil(ClipWindow(start: 10, end: game).nudged(startBy: 0, endBy: 1, gameDuration: game))
+    func testTrimBoundsClampToTheSourceVideo() {
+        // Tap 5 s in: can't reach 30 s before. Tap 5 s from the end: can't reach 15 s after.
+        XCTAssertEqual(ClipWindow.trimBounds(mark: 5, gameDuration: game, current: ClipWindow(start: 0, end: 8)),
+                       ClipWindow(start: 0, end: 20))
+        XCTAssertEqual(ClipWindow.trimBounds(mark: game - 5, gameDuration: game, current: ClipWindow(start: game - 15, end: game)),
+                       ClipWindow(start: game - 35, end: game))
     }
 
-    func testNudgeRefusesTooShort() {
-        XCTAssertNil(ClipWindow(start: 10, end: 11).nudged(startBy: 1, endBy: 0, gameDuration: game))
+    func testTrimBoundsNeverShrinkAnOlderWiderClip() {
+        let wide = ClipWindow(start: 550, end: 620)
+        XCTAssertEqual(ClipWindow.trimBounds(mark: 600, gameDuration: game, current: wide), wide)
+    }
+
+    func testDraggingAnEdgeClampsToTheBounds() {
+        let bounds = ClipWindow(start: 570, end: 615)
+        let window = ClipWindow(start: 590, end: 603)
+        XCTAssertEqual(window.trimming(.start, to: 500, within: bounds), ClipWindow(start: 570, end: 603))
+        XCTAssertEqual(window.trimming(.end, to: 700, within: bounds), ClipWindow(start: 590, end: 615))
+        XCTAssertEqual(window.trimming(.start, to: 595, within: bounds), ClipWindow(start: 595, end: 603))
+    }
+
+    func testTrimKeepsAtLeastTwoSeconds() {
+        let bounds = ClipWindow(start: 570, end: 615)
+        let window = ClipWindow(start: 590, end: 603)
+        XCTAssertEqual(window.trimming(.start, to: 602, within: bounds), ClipWindow(start: 601, end: 603))
+        XCTAssertEqual(window.trimming(.end, to: 589, within: bounds), ClipWindow(start: 590, end: 592))
+        // Pinned against the edge of the bounds, the minimum still holds.
+        XCTAssertEqual(ClipWindow(start: 570, end: 572).trimming(.end, to: 560, within: bounds), ClipWindow(start: 570, end: 572))
+    }
+
+    func testTrimInsideTinyBoundsKeepsEverything() {
+        let bounds = ClipWindow(start: 0, end: 1.5)
+        XCTAssertEqual(ClipWindow(start: 0, end: 1.5).trimming(.start, to: 1, within: bounds), bounds)
+    }
+
+    func testDefaultTrimIsTenBeforeThreeAfterClamped() {
+        XCTAssertEqual(ClipWindow.defaultTrim(mark: 600, gameDuration: game), ClipWindow(start: 590, end: 603))
+        XCTAssertEqual(ClipWindow.defaultTrim(mark: 4, gameDuration: game), ClipWindow(start: 0, end: 7))
+        XCTAssertEqual(ClipWindow.defaultTrim(mark: game - 1, gameDuration: game), ClipWindow(start: game - 11, end: game))
     }
 
     // MARK: Settings

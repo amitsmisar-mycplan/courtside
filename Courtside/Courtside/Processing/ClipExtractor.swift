@@ -7,7 +7,7 @@ enum ClipExportError: LocalizedError {
     case couldNotCreateSession
     case failed(underlying: Error?)
     case sourceUnavailable
-    case cannotNudge
+    case cannotTrim
     case slowMoSegmentsNotContiguous
 
     var errorDescription: String? {
@@ -16,8 +16,8 @@ enum ClipExportError: LocalizedError {
             "The clip couldn't be exported."
         case .sourceUnavailable:
             "The full game video has been deleted, so this clip can't be adjusted."
-        case .cannotNudge:
-            "The clip can't be adjusted any further in that direction."
+        case .cannotTrim:
+            "That range can't be used for this clip."
         case .slowMoSegmentsNotContiguous:
             "The slow-motion version couldn't be put together. Try a slightly different slow section."
         }
@@ -131,17 +131,28 @@ final class ClipExtractor {
         phase = Task.isCancelled ? .cancelled : .finished
     }
 
-    /// Re-exports `clip` with its edges shifted, replacing its file in place.
-    static func nudge(_ clip: Clip, startBy startDelta: Double, endBy endDelta: Double, context: ModelContext) async throws {
-        guard let game = clip.game, game.isVideoAvailable else { throw ClipExportError.sourceUnavailable }
-        guard let window = clip.window.nudged(startBy: startDelta, endBy: endDelta, gameDuration: game.durationSeconds) else {
-            throw ClipExportError.cannotNudge
-        }
+    /// Re-cuts `clip` from the full game video to `window`, replacing its file in place (same
+    /// filename; the new file is written aside first, so a failed export keeps the old clip).
+    static func trim(
+        _ clip: Clip,
+        to window: ClipWindow,
+        context: ModelContext,
+        progress: @escaping @MainActor (Double) -> Void
+    ) async throws {
+        guard let game = clip.game, game.isVideoAvailable,
+              StorageManager.fileExists(at: StorageManager.gameVideoURL(for: game))
+        else { throw ClipExportError.sourceUnavailable }
+        guard window.duration >= ClipWindow.trimMinimumDuration - 0.001,
+              window.start >= 0, window.end <= game.durationSeconds + 0.001
+        else { throw ClipExportError.cannotTrim }
+        // Fixed before the edges move, so the tap stays on the same game moment.
+        let mark = clip.markTime
         let destination = StorageManager.clipURL(for: clip)
-        try await export(source: StorageManager.gameVideoURL(for: game), window: window, to: destination) { _ in }
+        try await export(source: StorageManager.gameVideoURL(for: game), window: window, to: destination, progress: progress)
         StorageManager.removeThumbnail(forClipID: clip.id)
         // The slow-motion render was cut from the old clip, so it's stale now.
         StorageManager.removeSlowMoFile(of: clip)
+        clip.markSeconds = mark
         clip.startSeconds = window.start
         clip.endSeconds = window.end
         clip.fileSize = StorageManager.fileSize(at: destination)
