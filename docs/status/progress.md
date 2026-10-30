@@ -22,6 +22,9 @@ _Last updated: 2026-10-30_
 **Feature: game library** — opponent, score and notes on each game, edit screen, rows titled "vs Opponent", empty-state
 buttons ([0013](../decisions/0013-game-library.md)). Built on `feature/game-library`; existing data migrates in place.
 
+**Feature: undo mis-taps and delete clips** — repeatable Undo by mark ID in both marking screens; clip list with swipe and
+multi-select delete ([0014](../decisions/0014-undo-stack-and-clip-delete.md)). Built on `feature/undo-and-clip-delete`.
+
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).

@@ -4,7 +4,7 @@ import XCTest
 @testable import Courtside
 
 /// Stands in for the camera so the recording flow can be tested in the Simulator.
-private final class FakeRecordingService: RecordingService {
+final class FakeRecordingService: RecordingService {
     var prepareError: Error?
     var markTime: Double = 0
     var stopDuration: Double = 0
@@ -94,6 +94,9 @@ final class RecordingSessionTests: XCTestCase {
         session.undoLastMark()
         XCTAssertEqual(session.markCount, 1)
         XCTAssertEqual(session.game?.marks.map(\.offsetSeconds), [12.5])
+        session.undoLastMark()
+        XCTAssertEqual(session.markCount, 0, "undo is repeatable")
+        XCTAssertFalse(session.canUndo)
     }
 
     func testNoMarksBeforeRecording() async {

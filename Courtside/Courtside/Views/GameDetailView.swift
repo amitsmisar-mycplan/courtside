@@ -9,17 +9,43 @@ struct GameDetailView: View {
     @State private var showProcessing = false
     @State private var isEditing = false
     @State private var confirmDeleteVideo = false
-
-    private let columns = [GridItem(.adaptive(minimum: 150), spacing: 8)]
+    @State private var editMode: EditMode = .inactive
+    @State private var selection = Set<UUID>()
+    @State private var confirmDeleteSelected = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                summary
-                actions
-                clips
+        List(selection: $selection) {
+            Section {
+                VStack(alignment: .leading, spacing: 20) {
+                    summary
+                    actions
+                }
+                // Lists restyle labels (icons dropped or spread out); keep the plain look.
+                .labelStyle(.titleAndIcon)
+                .padding(.horizontal, 2)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
             }
-            .padding()
+            clips
+        }
+        .environment(\.editMode, $editMode)
+        .toolbar {
+            if editMode.isEditing {
+                ToolbarItem(placement: .bottomBar) {
+                    Button(deleteSelectedTitle, role: .destructive) { deleteSelected() }
+                        .tint(.red)
+                        .disabled(selection.isEmpty)
+                }
+            }
+        }
+        .confirmationDialog(
+            "Delete \(selection.count) clips?",
+            isPresented: $confirmDeleteSelected,
+            titleVisibility: .visible
+        ) {
+            Button("Delete \(selection.count) Clips", role: .destructive) { delete(selectedClips) }
+        } message: {
+            Text("Their videos and any slow-mo versions are removed from this phone. The full game video is not affected.")
         }
         .navigationTitle(game.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
@@ -95,6 +121,7 @@ struct GameDetailView: View {
             .onTapGesture { isEditing = true }
         } else if game.opponent == nil {
             Button("Add opponent and score", systemImage: "square.and.pencil") { isEditing = true }
+                .buttonStyle(.borderless)
                 .font(.subheadline)
         }
     }
@@ -109,6 +136,7 @@ struct GameDetailView: View {
             HStack {
                 Text("Full game video (\(Format.bytes(game.videoFileSize))) is kept.")
                 Button("Delete…", role: .destructive) { confirmDeleteVideo = true }
+                    .buttonStyle(.borderless)
                     .font(.caption)
             }
         }
@@ -149,20 +177,85 @@ struct GameDetailView: View {
             } description: {
                 Text("Watch the game and tap the screen whenever something good happens. Each tap becomes a clip.")
             }
+            .listRowBackground(Color.clear)
         } else {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(clips.count == 1 ? "1 Clip" : "\(clips.count) Clips")
-                    .font(.headline)
-                LazyVGrid(columns: columns, spacing: 8) {
-                    ForEach(clips) { clip in
-                        NavigationLink(value: clip) {
-                            ClipThumbnailView(clip: clip)
-                        }
-                        .buttonStyle(.plain)
+            Section {
+                ForEach(clips) { clip in
+                    NavigationLink(value: clip) {
+                        ClipRow(clip: clip)
                     }
+                    .tag(clip.id)
+                    .swipeActions {
+                        Button("Delete", systemImage: "trash", role: .destructive) { delete([clip]) }
+                    }
+                }
+            } header: {
+                HStack {
+                    Text(clips.count == 1 ? "1 Clip" : "\(clips.count) Clips")
+                    Spacer()
+                    Button(editMode.isEditing ? "Done" : "Select") {
+                        withAnimation {
+                            editMode = editMode.isEditing ? .inactive : .active
+                            selection.removeAll()
+                        }
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .textCase(nil)
                 }
             }
         }
+    }
+
+    private var selectedClips: [Clip] {
+        game.clips.filter { selection.contains($0.id) }
+    }
+
+    private var deleteSelectedTitle: String {
+        switch selection.count {
+        case 0: "Delete"
+        case 1: "Delete 1 Clip"
+        default: "Delete \(selection.count) Clips"
+        }
+    }
+
+    /// One clip goes straight away; more than one asks first.
+    private func deleteSelected() {
+        if selection.count > 1 {
+            confirmDeleteSelected = true
+        } else {
+            delete(selectedClips)
+        }
+    }
+
+    private func delete(_ clips: [Clip]) {
+        StorageManager.deleteClips(clips, in: modelContext)
+        selection.removeAll()
+        if game.clips.isEmpty { editMode = .inactive }
+    }
+}
+
+/// A clip in the game's list: thumbnail, where it sits in the game, and its length.
+private struct ClipRow: View {
+    let clip: Clip
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ClipThumbnailView(clip: clip)
+                .frame(width: 112)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(Format.duration(clip.startSeconds)) – \(Format.duration(clip.endSeconds))")
+                    .font(.headline.monospacedDigit())
+                HStack(spacing: 8) {
+                    Text("\(Int(clip.window.duration.rounded())) sec")
+                    if clip.hasSlowMo {
+                        Label("Slow Mo", systemImage: "tortoise.fill")
+                    }
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 2)
     }
 }
 
@@ -182,16 +275,6 @@ struct ClipThumbnailView: View {
                     ProgressView()
                         .tint(.white)
                 }
-            }
-            .overlay(alignment: .bottomLeading) {
-                Text(Format.duration(clip.startSeconds))
-                    .font(.caption2.weight(.semibold))
-                    .monospacedDigit()
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 4))
-                    .foregroundStyle(.white)
-                    .padding(6)
             }
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .task(id: "\(clip.id)-\(clip.startSeconds)-\(clip.endSeconds)") {

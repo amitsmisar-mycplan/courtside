@@ -40,6 +40,15 @@ All tests must pass and the build must have zero warnings before committing.
 - **Losing footage is the one unforgivable bug.** Never delete a complete game video that has no `Game` record — orphans are for step 7 recovery.
 - Non-goals (computer vision, stats, cloud/accounts, reels, rosters, Android/iPad/Watch) are out of scope.
 
+## Feature rules
+
+- SwiftData schema changes need a lightweight migration. Existing user data must survive.
+- Deleting a clip, game, or source video removes only the files it owned, via `StorageManager`. No orphans. Anything that deletes a source video needs explicit user confirmation and a decision record.
+- Trims, exports, slow-motion, reels, and overlays extend `ClipExtractor` (or a composition builder it calls). No second export path.
+- Do only the requested feature. List worthwhile extras at the end of your report instead of building them.
+- End each task with: what changed, what to test on a real device, known limits. Update `docs/status/progress.md`.
+- The app stays private (founder-only TestFlight) until the founder says otherwise.
+
 ## Working style
 
 - Read files before changing them; match the surrounding code's style and comment density.

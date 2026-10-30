@@ -137,8 +137,15 @@ enum StorageManager {
     }
 
     @MainActor static func deleteClip(_ clip: Clip, in context: ModelContext) {
-        removeClipFiles(clip)
-        context.delete(clip)
+        deleteClips([clip], in: context)
+    }
+
+    /// Removes each clip's exported file, slow-mo render and thumbnail, then the records, in one save.
+    @MainActor static func deleteClips(_ clips: [Clip], in context: ModelContext) {
+        for clip in clips {
+            removeClipFiles(clip)
+            context.delete(clip)
+        }
         save(context)
     }
 

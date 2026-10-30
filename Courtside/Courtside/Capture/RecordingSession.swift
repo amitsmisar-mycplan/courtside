@@ -18,7 +18,6 @@ final class RecordingSession {
 
     private static let log = Logger(subsystem: "Courtside", category: "Recording")
     static let debounceInterval: CFTimeInterval = 2
-    static let undoWindow: Duration = .seconds(5)
     static let idleDimAfter: CFTimeInterval = 30
     static let lowDiskStopBytes: Int64 = 1_000_000_000
     static let diskPollInterval: Duration = .seconds(60)
@@ -28,7 +27,8 @@ final class RecordingSession {
     private(set) var preflightIssues: [RecordingPreflight.Issue] = []
     private(set) var elapsed: Double = 0
     private(set) var markCount = 0
-    private(set) var undoableMark: Mark?
+    /// Recent taps Undo can remove — the same stack playback marking uses (decision 0014).
+    let undo = MarkUndoStack()
     private(set) var isDimmed = false
     private(set) var thermalWarning: String?
     private(set) var game: Game?
@@ -43,7 +43,6 @@ final class RecordingSession {
     @ObservationIgnored private var lastInteraction: CFTimeInterval = 0
     @ObservationIgnored private var tickTask: Task<Void, Never>?
     @ObservationIgnored private var diskTask: Task<Void, Never>?
-    @ObservationIgnored private var undoExpiry: Task<Void, Never>?
     @ObservationIgnored private var thermalObserver: NSObjectProtocol?
 
     init(
@@ -142,7 +141,7 @@ final class RecordingSession {
 
     func shutdown() {
         stopBackgroundWork()
-        undoExpiry?.cancel()
+        undo.clear()
         if let thermalObserver { NotificationCenter.default.removeObserver(thermalObserver) }
         thermalObserver = nil
         service.shutdown()
@@ -168,7 +167,7 @@ final class RecordingSession {
         game.videoFileSize = StorageManager.fileSize(at: url)
         try? context.save()
         elapsed = duration
-        undoableMark = nil
+        undo.clear()
         isDimmed = false
         phase = .finished
         Self.log.info("Saved recording: \(duration)s, \(self.markCount) marks")
@@ -191,25 +190,24 @@ final class RecordingSession {
         try? context.save()
         markCount += 1
 
-        undoableMark = mark
-        undoExpiry?.cancel()
-        undoExpiry = Task { [weak self] in
-            try? await Task.sleep(for: Self.undoWindow)
-            guard !Task.isCancelled else { return }
-            self?.undoableMark = nil
-        }
+        undo.push(mark.id)
         return true
     }
 
+    var canUndo: Bool { undo.canUndo }
+
+    /// Removes the most recent undoable tap, found by its identifier. Repeatable.
     func undoLastMark() {
-        guard let mark = undoableMark else { return }
+        guard let game else { return }
         touch()
-        undoExpiry?.cancel()
-        undoableMark = nil
-        context.delete(mark)
-        try? context.save()
-        markCount = max(0, markCount - 1)
-        lastMarkAt = -.greatestFiniteMagnitude
+        while let id = undo.popLatest() {
+            guard let mark = game.marks.first(where: { $0.id == id }) else { continue }
+            context.delete(mark)
+            try? context.save()
+            markCount = max(0, markCount - 1)
+            lastMarkAt = -.greatestFiniteMagnitude
+            return
+        }
     }
 
     func refocus() {

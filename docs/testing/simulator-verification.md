@@ -147,6 +147,20 @@ Decision [0013](../decisions/0013-game-library.md).
 | Empty state | ✅ fresh iPhone 18 Pro Simulator: message + "Record a Game" + "Import a Video" (Files / Photos menu) |
 | Recording creates a game | Unit test (no camera in the Simulator): created untitled, before any footage is at risk |
 
+## Undo and clip delete — 2026-10-30, iPhone 17 Simulator
+
+Decision [0014](../decisions/0014-undo-stack-and-clip-delete.md).
+
+| Check | Result |
+|---|---|
+| Tap 5, undo 3 (playback marking) | ✅ button "Undo 5" → three taps → the last three marks removed, first two kept (read from the store) |
+| Same on a recorded game | Unit test only (no camera in the Simulator); same code path |
+| Swipe a clip → Delete | ✅ record and clip file removed |
+| Select 2 → Delete | ✅ "Delete 2 clips?" confirmation; both files gone, no leftover files (thumbnails included); other games' 6 clips untouched |
+
+Simulator note: taps sent within ~1 s of a screen appearing, or right after a relaunch, are sometimes dropped by the
+Simulator's input connection. Pace scripted taps; check on a device.
+
 ## Not yet verified
 
 - [ ] Real game **filmed on a phone camera** from the stands (landscape, with audio, 30/60 fps, rotation metadata) — the 2026-09-30 run used a screen recording

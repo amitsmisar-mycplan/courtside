@@ -7,7 +7,6 @@ import SwiftData
 @MainActor @Observable
 final class MarkingSession {
     static let debounceInterval: CFTimeInterval = 2
-    static let undoWindow: Duration = .seconds(5)
     static let speeds: [Float] = [1, 1.5, 2]
     static let jumpBackSeconds: Double = 10
     private static let log = Logger(subsystem: "Courtside", category: "Playback")
@@ -20,12 +19,13 @@ final class MarkingSession {
     let game: Game
     @ObservationIgnored let player: AVPlayer
     @ObservationIgnored private let context: ModelContext
+    @ObservationIgnored private let clock: () -> CFTimeInterval
 
     private(set) var currentTime: Double = 0
     private(set) var isPlaying = false
     private(set) var speed: Float = 1
-    /// The most recent mark, while it can still be undone.
-    private(set) var undoableMark: Mark?
+    /// Recent taps Undo can remove, newest first (decision 0014).
+    let undo = MarkUndoStack()
     /// Set when the video can't be played, so the screen says so instead of staying black.
     private(set) var playbackFailed = false
     var isScrubbing = false
@@ -34,17 +34,18 @@ final class MarkingSession {
     @ObservationIgnored private var timeObserver: Any?
     @ObservationIgnored private var statusObservation: NSKeyValueObservation?
     @ObservationIgnored private var itemStatusObservation: NSKeyValueObservation?
-    @ObservationIgnored private var undoExpiry: Task<Void, Never>?
 
     var duration: Double { game.durationSeconds }
     var markCount: Int { game.marks.count }
+    var canUndo: Bool { undo.canUndo }
     var ticks: [Tick] {
         game.marks.map { Tick(id: $0.id, offset: $0.offsetSeconds) }
     }
 
-    init(game: Game, context: ModelContext) {
+    init(game: Game, context: ModelContext, clock: @escaping () -> CFTimeInterval = CACurrentMediaTime) {
         self.game = game
         self.context = context
+        self.clock = clock
         self.player = AVPlayer(url: StorageManager.gameVideoURL(for: game))
         player.defaultRate = 1
 
@@ -83,7 +84,7 @@ final class MarkingSession {
     func placeMark() -> Bool {
         // A mark on a video that isn't playing would land at a meaningless offset.
         guard !playbackFailed else { return false }
-        let now = CACurrentMediaTime()
+        let now = clock()
         guard now - lastMarkAt >= Self.debounceInterval else { return false }
         lastMarkAt = now
 
@@ -95,24 +96,21 @@ final class MarkingSession {
         game.isProcessed = false
         try? context.save()
 
-        undoableMark = mark
-        undoExpiry?.cancel()
-        undoExpiry = Task { [weak self] in
-            try? await Task.sleep(for: Self.undoWindow)
-            guard !Task.isCancelled else { return }
-            self?.undoableMark = nil
-        }
+        undo.push(mark.id)
         return true
     }
 
+    /// Removes the most recent undoable tap, found by its identifier. Repeatable.
     func undoLastMark() {
-        guard let mark = undoableMark else { return }
-        undoExpiry?.cancel()
-        undoableMark = nil
-        context.delete(mark)
-        game.isProcessed = game.marks.allSatisfy(\.isExtracted)
-        try? context.save()
-        lastMarkAt = -.greatestFiniteMagnitude
+        while let id = undo.popLatest() {
+            guard let mark = game.marks.first(where: { $0.id == id }) else { continue }
+            context.delete(mark)
+            game.isProcessed = game.marks.allSatisfy(\.isExtracted)
+            try? context.save()
+            // The next tap shouldn't be swallowed by the debounce of the one just undone.
+            lastMarkAt = -.greatestFiniteMagnitude
+            return
+        }
     }
 
     // MARK: Transport
@@ -157,6 +155,6 @@ final class MarkingSession {
         statusObservation = nil
         itemStatusObservation?.invalidate()
         itemStatusObservation = nil
-        undoExpiry?.cancel()
+        undo.clear()
     }
 }

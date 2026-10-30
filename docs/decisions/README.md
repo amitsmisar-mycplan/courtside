@@ -17,3 +17,4 @@ One file per decision that deviates from or extends the spec. Add new ones with 
 | [0011](0011-recording.md) | Recording (step 6) + footage-safety parts of step 7 | Accepted — device test pending |
 | [0012](0012-slowmo-fullscreen-preview.md) | Slow-mo preview full screen, turned to match the video (departs from 0008) | Accepted |
 | [0013](0013-game-library.md) | Game library: opponent, score, notes; name and opponent both kept | Accepted |
+| [0014](0014-undo-stack-and-clip-delete.md) | Repeatable Undo by mark ID; delete clips by swipe or selection | Accepted |
