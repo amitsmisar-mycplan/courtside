@@ -98,6 +98,17 @@ rotation flag). Kept in `~/Documents/Courtside Test Videos/` — not in git. Res
 
 **Finding:** none of the parent's footage is 60 fps, so 0.25× never appears with it (phones default to 4K30).
 
+## 2026-10-30 — Oct 7 / Oct 14 footage, unplayable-video notice
+
+14 new videos (Oct 7: 3 phone + 5 DJI; Oct 14: 6 phone), all 30 fps. Kept in
+`~/Documents/Courtside Test Videos/Test Clips Oct 30/` — not in git.
+
+| Check | Result |
+|---|---|
+| Upright phone video (`20261007_165634`, stored 3840×2160 with a 90° rotation) | ✅ plays upright in marking; 4 clips made, upright |
+| Simulator lost its audio device (error -66680 → AVPlayer -11800/-12746) | Black marking screen with a *pause* button, no message. Simulator-only; fixed by restarting the Simulator |
+| Same failure, after the fix | ✅ "This video can't be played right now — Nothing has been deleted…"; taps don't place marks. Checked with a broken stand-in file; the real video was set aside and restored |
+
 ## Not yet verified
 
 - [ ] Real game **filmed on a phone camera** from the stands (landscape, with audio, 30/60 fps, rotation metadata) — the 2026-09-30 run used a screen recording

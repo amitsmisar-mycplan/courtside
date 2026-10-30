@@ -1,4 +1,5 @@
 import AVFoundation
+import OSLog
 import QuartzCore
 import SwiftData
 
@@ -9,6 +10,7 @@ final class MarkingSession {
     static let undoWindow: Duration = .seconds(5)
     static let speeds: [Float] = [1, 1.5, 2]
     static let jumpBackSeconds: Double = 10
+    private static let log = Logger(subsystem: "Courtside", category: "Playback")
 
     struct Tick: Identifiable {
         let id: UUID
@@ -24,11 +26,14 @@ final class MarkingSession {
     private(set) var speed: Float = 1
     /// The most recent mark, while it can still be undone.
     private(set) var undoableMark: Mark?
+    /// Set when the video can't be played, so the screen says so instead of staying black.
+    private(set) var playbackFailed = false
     var isScrubbing = false
 
     @ObservationIgnored private var lastMarkAt: CFTimeInterval = -.greatestFiniteMagnitude
     @ObservationIgnored private var timeObserver: Any?
     @ObservationIgnored private var statusObservation: NSKeyValueObservation?
+    @ObservationIgnored private var itemStatusObservation: NSKeyValueObservation?
     @ObservationIgnored private var undoExpiry: Task<Void, Never>?
 
     var duration: Double { game.durationSeconds }
@@ -58,6 +63,17 @@ final class MarkingSession {
             let playing = player.timeControlStatus != .paused
             Task { @MainActor in self?.isPlaying = playing }
         }
+        itemStatusObservation = player.currentItem?.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
+            guard item.status == .failed else { return }
+            Task { @MainActor in self?.handlePlaybackFailure(item.error) }
+        }
+    }
+
+    private func handlePlaybackFailure(_ error: Error?) {
+        guard !playbackFailed else { return }
+        Self.log.error("Game video failed to play: \(String(describing: error), privacy: .public)")
+        player.pause()
+        playbackFailed = true
     }
 
     // MARK: Marking
@@ -65,6 +81,8 @@ final class MarkingSession {
     /// Places a mark at the current playhead. Returns false if debounced.
     @discardableResult
     func placeMark() -> Bool {
+        // A mark on a video that isn't playing would land at a meaningless offset.
+        guard !playbackFailed else { return false }
         let now = CACurrentMediaTime()
         guard now - lastMarkAt >= Self.debounceInterval else { return false }
         lastMarkAt = now
@@ -137,6 +155,8 @@ final class MarkingSession {
         timeObserver = nil
         statusObservation?.invalidate()
         statusObservation = nil
+        itemStatusObservation?.invalidate()
+        itemStatusObservation = nil
         undoExpiry?.cancel()
     }
 }
