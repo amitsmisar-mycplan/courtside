@@ -140,13 +140,22 @@ enum StorageManager {
         deleteClips([clip], in: context)
     }
 
-    /// Removes each clip's exported file, slow-mo render and thumbnail, then the records, in one save.
+    /// Removes each clip's exported file, slow-mo render and thumbnail, then the records — the clip
+    /// and the mark it was made from, so the game's mark count matches its clips — in one save.
     @MainActor static func deleteClips(_ clips: [Clip], in context: ModelContext) {
         for clip in clips {
+            if let mark = sourceMark(of: clip) { context.delete(mark) }
             removeClipFiles(clip)
             context.delete(clip)
         }
         save(context)
+    }
+
+    /// The mark a clip was cut from: the extracted mark at the clip's stored tap time. Clips made
+    /// before the tap time was stored have no reliable match, so their mark is left alone.
+    @MainActor private static func sourceMark(of clip: Clip) -> Mark? {
+        guard let tap = clip.markSeconds, let marks = clip.game?.marks else { return nil }
+        return marks.first { $0.isExtracted && abs($0.offsetSeconds - tap) < 0.001 }
     }
 
     /// Deletes the full game video but keeps the game, its marks and its clips.

@@ -29,6 +29,10 @@ multi-select delete ([0014](../decisions/0014-undo-stack-and-clip-delete.md)). B
 2 s minimum, reset to 10/3, re-cut through `ClipExtractor`; replaces nudge ([0015](../decisions/0015-clip-trim.md)).
 Built on `feature/clip-trim`.
 
+**Fix:** deleting a clip (swipe, multi-select, or the clip screen) now also deletes the mark it came from, so a game's mark
+count matches its clips ([0014](../decisions/0014-undo-stack-and-clip-delete.md)). Older clips without a stored tap time
+keep their mark.
+
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).

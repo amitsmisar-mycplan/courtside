@@ -172,4 +172,45 @@ final class MarkUndoTests: XCTestCase {
         XCTAssertEqual(game.clips.map(\.id), [clips[1].id])
         XCTAssertEqual(try context.fetchCount(FetchDescriptor<Clip>()), 1)
     }
+
+    /// Each clip's own mark goes with it; marks for other clips, pending marks, and the mark of a
+    /// clip made before tap times were stored are left alone.
+    func testDeletingClipsDeletesTheirMarksSoCountsMatch() throws {
+        let game = Game(label: "", recordedAt: .now, videoFilename: "g.mov", durationSeconds: 120,
+                        source: .imported, videoFileSize: 1)
+        context.insert(game)
+        func addMark(_ offset: Double, extracted: Bool) {
+            let mark = Mark(offsetSeconds: offset)
+            mark.isExtracted = extracted
+            context.insert(mark)
+            mark.game = game
+        }
+        func addClip(tap: Double?, start: Double) -> Clip {
+            let id = UUID()
+            let clip = Clip(id: id, filename: StorageManager.makeClipFilename(id: id), startSeconds: start,
+                            endSeconds: start + 13, fileSize: 1, markSeconds: tap)
+            context.insert(clip)
+            clip.game = game
+            return clip
+        }
+        for offset in [20.0, 50.0, 80.0] { addMark(offset, extracted: true) }
+        addMark(100, extracted: false)  // tapped, not made into a clip yet
+        addMark(110, extracted: true)   // behind an older clip with no stored tap
+        let first = addClip(tap: 20, start: 10)
+        let second = addClip(tap: 50, start: 40)
+        _ = addClip(tap: 80, start: 70)
+        let legacy = addClip(tap: nil, start: 97)
+        try context.save()
+        XCTAssertEqual(game.marks.count, 5)
+
+        StorageManager.deleteClips([first, second], in: context)
+
+        XCTAssertEqual(game.clips.count, 2)
+        XCTAssertEqual(game.marks.map(\.offsetSeconds).sorted(), [80, 100, 110])
+        XCTAssertEqual(game.marks.filter(\.isExtracted).count, game.clips.count, "made marks match clips")
+
+        StorageManager.deleteClips([legacy], in: context)
+        XCTAssertEqual(game.marks.map(\.offsetSeconds).sorted(), [80, 100, 110], "no guessing for older clips")
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Mark>()), 3)
+    }
 }
