@@ -92,7 +92,8 @@ final class RecordingSession {
             let now = Date()
             // Created as soon as the file exists, so a crash mid-game still has a record.
             let game = Game(
-                label: Game.defaultLabel(for: now),
+                // Details are filled in after the game; never ask for them before recording.
+                label: "",
                 recordedAt: now,
                 videoFilename: url.lastPathComponent,
                 durationSeconds: 0,

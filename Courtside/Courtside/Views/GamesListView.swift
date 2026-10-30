@@ -22,7 +22,14 @@ struct GamesListView: View {
                     ContentUnavailableView {
                         Label("No games yet", systemImage: "basketball")
                     } description: {
-                        Text("Import a game you've already filmed, tap whenever something good happens, and get your kid's clips.")
+                        Text("Record a game or import one you've already filmed, tap whenever something good happens, and get your kid's clips.")
+                    } actions: {
+                        Button("Record a Game", systemImage: "video") { showRecording = true }
+                            .buttonStyle(.borderedProminent)
+                        importMenu {
+                            Label("Import a Video", systemImage: "square.and.arrow.down")
+                        }
+                        .buttonStyle(.bordered)
                     }
                 } else {
                     gameList
@@ -35,9 +42,12 @@ struct GamesListView: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                addGameButton
-                    .padding(.horizontal)
-                    .padding(.bottom, 8)
+                // The empty state has its own buttons.
+                if !games.isEmpty {
+                    addGameButton
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
+                }
             }
             .navigationDestination(for: Game.self) { game in
                 GameDetailView(game: game)
@@ -75,11 +85,11 @@ struct GamesListView: View {
             titleVisibility: .visible,
             presenting: gamePendingDelete
         ) { game in
-            Button("Delete Game and \(game.clips.count) Clips", role: .destructive) {
+            Button(deleteTitle(clipCount: game.clips.count), role: .destructive) {
                 StorageManager.deleteGame(game, in: modelContext)
             }
         } message: { game in
-            Text("\(game.label) will be removed from Courtside along with its video, marks and clips. This frees \(Format.bytes(game.storageBytes)).")
+            Text("\(game.displayTitle) will be removed from Courtside along with its video, marks and clips. This frees \(Format.bytes(game.storageBytes)).")
         }
         .alert("Couldn't open file", isPresented: Binding(get: { pickerError != nil }, set: { if !$0 { pickerError = nil } })) {
             Button("OK", role: .cancel) {}
@@ -106,6 +116,23 @@ struct GamesListView: View {
         }
     }
 
+    private func deleteTitle(clipCount: Int) -> String {
+        switch clipCount {
+        case 0: "Delete Game"
+        case 1: "Delete Game and 1 Clip"
+        default: "Delete Game and \(clipCount) Clips"
+        }
+    }
+
+    private func importMenu(@ViewBuilder label: () -> some View) -> some View {
+        Menu {
+            Button("Import from Photos", systemImage: "photo.on.rectangle") { showPhotosPicker = true }
+            Button("Import from Files", systemImage: "folder") { showFileImporter = true }
+        } label: {
+            label()
+        }
+    }
+
     private var addGameButton: some View {
         Menu {
             Button("Import from Photos", systemImage: "photo.on.rectangle") { showPhotosPicker = true }
@@ -128,10 +155,14 @@ private struct GameRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
-                Text(game.label)
+                Text(game.displayTitle)
                     .font(.headline)
                     .lineLimit(1)
                 Spacer()
+                if let score = game.scoreText {
+                    Text(score)
+                        .font(.headline.monospacedDigit())
+                }
                 SourceBadge(source: game.source)
             }
             Text(game.recordedAt.formatted(date: .abbreviated, time: .shortened))

@@ -109,6 +109,21 @@ rotation flag). Kept in `~/Documents/Courtside Test Videos/` — not in git. Res
 | Simulator lost its audio device (error -66680 → AVPlayer -11800/-12746) | Black marking screen with a *pause* button, no message. Simulator-only; fixed by restarting the Simulator |
 | Same failure, after the fix | ✅ "This video can't be played right now — Nothing has been deleted…"; taps don't place marks. Checked with a broken stand-in file; the real video was set aside and restored |
 
+## Game library — 2026-10-30, iPhone 17 Simulator
+
+Decision [0013](../decisions/0013-game-library.md).
+
+| Check | Result |
+|---|---|
+| v1 store upgrade (4 games, 9 clips, marks, slow-mo names) | ✅ backed up, installed over it: every game, mark and clip identical; 4 new columns, all empty |
+| Existing names | ✅ still shown as titles ("Game — Oct 4, 2026") |
+| Edit: opponent, score, notes | ✅ opponent field ready to type; Next → score (number pad); row shows "vs Lakers  54–48" |
+| Details survive relaunch | ✅ force-quit and relaunch: opponent, score, notes kept (also read straight from the store) |
+| Import creates a game | ✅ created before any question; date from the video (Oct 14); "Later" → "Untitled game", newest first |
+| Swipe to delete | ✅ confirmation names the clips; the game's video file removed, other 4 games' files and 9 clips untouched |
+| Empty state | ✅ fresh iPhone 18 Pro Simulator: message + "Record a Game" + "Import a Video" (Files / Photos menu) |
+| Recording creates a game | Unit test (no camera in the Simulator): created untitled, before any footage is at risk |
+
 ## Not yet verified
 
 - [ ] Real game **filmed on a phone camera** from the stands (landscape, with audio, 30/60 fps, rotation metadata) — the 2026-09-30 run used a screen recording

@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-10-07_
+_Last updated: 2026-10-30_
 
 | Step | What | Status |
 |---|---|---|
@@ -16,6 +16,9 @@ _Last updated: 2026-10-07_
 **Since steps 1–5:** "Keep the full game video" now means keep forever (decision 0004).
 
 **Feature: slow motion** ([spec](../feature-slow-motion.md), [decision 0007](../decisions/0007-slow-motion.md)) — built on `feature/slow-motion`; Simulator verification in [testing](../testing/simulator-verification.md#slow-motion).
+
+**Feature: game library** — opponent, score and notes on each game, edit screen, rows titled "vs Opponent", empty-state
+buttons ([0013](../decisions/0013-game-library.md)). Built on `feature/game-library`; existing data migrates in place.
 
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 

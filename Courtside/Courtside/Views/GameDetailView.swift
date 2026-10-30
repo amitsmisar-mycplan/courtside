@@ -7,8 +7,7 @@ struct GameDetailView: View {
 
     @State private var showMarking = false
     @State private var showProcessing = false
-    @State private var isRenaming = false
-    @State private var draftLabel = ""
+    @State private var isEditing = false
     @State private var confirmDeleteVideo = false
 
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 8)]
@@ -22,26 +21,15 @@ struct GameDetailView: View {
             }
             .padding()
         }
-        .navigationTitle(game.label)
+        .navigationTitle(game.displayTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button("Rename") {
-                    draftLabel = game.label
-                    isRenaming = true
-                }
+                Button("Edit") { isEditing = true }
             }
         }
-        .alert("Rename Game", isPresented: $isRenaming) {
-            TextField("Label", text: $draftLabel)
-            Button("Save") {
-                let trimmed = draftLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.isEmpty {
-                    game.label = trimmed
-                    try? modelContext.save()
-                }
-            }
-            Button("Cancel", role: .cancel) {}
+        .sheet(isPresented: $isEditing) {
+            GameInfoEditor(game: game, modelContext: modelContext)
         }
         .navigationDestination(for: Clip.self) { clip in
             ClipPlayerView(clip: clip)
@@ -75,6 +63,7 @@ struct GameDetailView: View {
                 Spacer()
                 SourceBadge(source: game.source)
             }
+            details
             HStack(spacing: 12) {
                 Label(Format.duration(game.durationSeconds), systemImage: "clock")
                 Label(game.marks.count == 1 ? "1 mark" : "\(game.marks.count) marks", systemImage: "flag")
@@ -85,6 +74,28 @@ struct GameDetailView: View {
             videoStatus
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    /// Score and notes when set; otherwise a nudge to add them, since they're never asked for up front.
+    @ViewBuilder
+    private var details: some View {
+        if game.scoreText != nil || game.notes != nil {
+            VStack(alignment: .leading, spacing: 4) {
+                if let score = game.scoreText {
+                    Text(score)
+                        .font(.title2.weight(.bold).monospacedDigit())
+                }
+                if let notes = game.notes {
+                    Text(notes)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .onTapGesture { isEditing = true }
+        } else if game.opponent == nil {
+            Button("Add opponent and score", systemImage: "square.and.pencil") { isEditing = true }
+                .font(.subheadline)
         }
     }
 
