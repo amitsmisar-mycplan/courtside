@@ -55,3 +55,14 @@ All tests must pass and the build must have zero warnings before committing.
 - Verify behavior in the Simulator for UI changes, not just tests.
 - Update `docs/status/progress.md` and `docs/testing/` when a step or verification changes.
 - Work on a branch; `main` changes only with the founder's go-ahead.
+
+
+Create a branch with `git checkout -b chore/ship-rule --no-track origin/main`. Add the section below to CLAUDE.md, and create scripts/repo-health.sh. The script should run `git fetch`, then print: the current branch, `git status -s`, and for every local branch the number of commits not in origin/main and its upstream. Commit both, then run `git push -u origin chore/ship-rule`. Don't touch main. Report using the SHIP STATUS format in the new section.
+
+## Shipping rule (every task)
+A task is not done until the work is safe on GitHub.
+1. Start every session by running scripts/repo-health.sh. Before new work, tell me about any uncommitted changes, any branch with commits not in origin/main, and any branch whose upstream is origin/main.
+2. Start each task from an up-to-date origin/main on a new branch named for the task, created with `git checkout -b <name> --no-track origin/main` so it never inherits origin/main as its upstream. Never commit or push to main.
+3. Before finishing: commit everything (code, docs, tests; `git status` must be clean), merge origin/main in, resolve docs conflicts keeping both sides (renumber decisions on collision), and run the full test suite from a clean build with zero warnings.
+4. Push the branch to its own name with `git push -u origin <branch>`, and open a pull request if `gh` is available.
+5. End every report with a SHIP STATUS block: branch, last commit, working tree clean (yes/no), pushed (yes/no), tests (count and warnings), pull request link, and the one action left for the founder.
