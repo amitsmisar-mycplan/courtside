@@ -2,7 +2,8 @@ import AVFoundation
 import XCTest
 
 /// Generates small test videos: solid frames at a given frame rate, an optional rotation,
-/// and an optional continuous 440 Hz tone on the audio track.
+/// an optional continuous 440 Hz tone on the audio track, and an optional pause after the first
+/// frame like the one phone cameras leave at the start of a recording.
 enum TestMedia {
     static let audioSampleRate: Double = 44_100
 
@@ -11,10 +12,11 @@ enum TestMedia {
         seconds: Int,
         fps: Int,
         transform: CGAffineTransform = .identity,
+        firstFrameGap: Double = 0,
         withTone: Bool
     ) async throws {
         guard withTone else {
-            try await writeFrames(to: url, seconds: seconds, fps: fps, transform: transform)
+            try await writeFrames(to: url, seconds: seconds, fps: fps, transform: transform, firstFrameGap: firstFrameGap)
             return
         }
         // Intermediates go to the temp folder, never next to `url` (which may be the app's
@@ -26,7 +28,7 @@ enum TestMedia {
             try? FileManager.default.removeItem(at: videoURL)
             try? FileManager.default.removeItem(at: audioURL)
         }
-        try await writeFrames(to: videoURL, seconds: seconds, fps: fps, transform: transform)
+        try await writeFrames(to: videoURL, seconds: seconds, fps: fps, transform: transform, firstFrameGap: firstFrameGap)
         try writeTone(to: audioURL, seconds: Double(seconds))
 
         // Mux video + audio with a passthrough export.
@@ -48,7 +50,11 @@ enum TestMedia {
         if let error = session.error { throw error }
     }
 
-    private static func writeFrames(to url: URL, seconds: Int, fps: Int, transform: CGAffineTransform) async throws {
+    /// With `firstFrameGap`, frame 1 arrives that long after frame 0 instead of one frame later,
+    /// and the rest follow at `fps` from there (same frame count, slightly longer video).
+    private static func writeFrames(
+        to url: URL, seconds: Int, fps: Int, transform: CGAffineTransform, firstFrameGap: Double = 0
+    ) async throws {
         let size = CGSize(width: 320, height: 180)
         let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
@@ -72,7 +78,10 @@ enum TestMedia {
             CVPixelBufferLockBaseAddress(buffer!, [])
             memset(CVPixelBufferGetBaseAddress(buffer!), Int32(frame * 4 % 256), CVPixelBufferGetDataSize(buffer!))
             CVPixelBufferUnlockBaseAddress(buffer!, [])
-            adaptor.append(buffer!, withPresentationTime: CMTime(value: CMTimeValue(frame), timescale: CMTimeScale(fps)))
+            let time = frame == 0 || firstFrameGap <= 0
+                ? CMTime(value: CMTimeValue(frame), timescale: CMTimeScale(fps))
+                : CMTime(seconds: firstFrameGap + Double(frame - 1) / Double(fps), preferredTimescale: 60_000)
+            adaptor.append(buffer!, withPresentationTime: time)
         }
         input.markAsFinished()
         await writer.finishWriting()

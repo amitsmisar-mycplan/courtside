@@ -15,7 +15,7 @@ struct CourtsideApp: App {
         }
         // Unit tests run inside this app and create and delete their own files in Documents;
         // launch maintenance mustn't race them (it would "recover" test videos as games).
-        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+        guard !AppEnvironment.isUnitTesting else { return }
         StorageManager.performLaunchCleanup(in: container.mainContext)
         let context = container.mainContext
         Task { await StorageManager.recoverRecordings(in: context) }
@@ -27,4 +27,9 @@ struct CourtsideApp: App {
         }
         .modelContainer(container)
     }
+}
+
+enum AppEnvironment {
+    /// Unit tests run hosted inside the app, sharing its files and settings.
+    static let isUnitTesting = ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
 }
