@@ -37,6 +37,10 @@ keep their mark.
 permission with a Settings link when refused, cancel, temp files cleaned up ([0016](../decisions/0016-export-to-photos.md)).
 Built on `feature/export-vertical`. Device timing still to measure.
 
+**Test: real-footage stress run** — `CorpusStressTests` (skipped unless `COURTSIDE_CORPUS_DIR` is set) imported,
+marked, extracted, trimmed, exported vertical and deleted across the 5 Nov 1 videos (51 min, 15.9 GB): 40 of 40 clips,
+0 failures, no orphans ([results](../testing/corpus-nov-1.md#stress-test)). Three bugs found, none touching footage.
+
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).
