@@ -12,3 +12,19 @@ xcuserdata/
 # Swift Package Manager
 .build/
 .swiftpm/
+
+# Test footage and anything derived from it (children appear in it). Results go in docs as text only.
+*.mp4
+*.MP4
+*.mov
+*.MOV
+*.m4v
+*.heic
+*.HEIC
+*.jpg
+*.JPG
+*.jpeg
+*.png
+corpus-results/
+# ...except the app's own icon and image assets.
+!Courtside/Courtside/Assets.xcassets/**
