@@ -32,10 +32,16 @@ final class ClipExtractor {
         case idle
         case running
         case finished
+        /// Stopped by the parent.
         case cancelled
+        /// Stopped because iOS ended the app's background time. The missing clips are made
+        /// when the app is back on screen (decision 0017).
+        case interrupted
     }
 
     nonisolated private static let log = Logger(subsystem: "Courtside", category: "Extraction")
+    /// One batch at a time across the whole app: exports are serial, never parallel.
+    private static var isBusy = false
 
     private(set) var phase: Phase = .idle
     private(set) var total = 0
@@ -44,7 +50,19 @@ final class ClipExtractor {
     /// Progress of the clip currently exporting, 0...1.
     private(set) var currentProgress: Double = 0
 
+    @ObservationIgnored private let backgroundTime: BackgroundTimeGranting
+    @ObservationIgnored private let unfinished: UnfinishedClips
     @ObservationIgnored private var runTask: Task<Void, Never>?
+    @ObservationIgnored private var gameID: UUID?
+    @ObservationIgnored private var backgroundTask: UIBackgroundTaskIdentifier?
+    @ObservationIgnored private var backgroundTimeExpired = false
+    /// Where the clip being exported is written until it's complete.
+    @ObservationIgnored private var currentPartial: URL?
+
+    init(backgroundTime: BackgroundTimeGranting = SystemBackgroundTime(), unfinished: UnfinishedClips = UnfinishedClips()) {
+        self.backgroundTime = backgroundTime
+        self.unfinished = unfinished
+    }
 
     var overallProgress: Double {
         guard total > 0 else { return 1 }
@@ -54,26 +72,67 @@ final class ClipExtractor {
     /// 1-based index of the clip being exported.
     var currentIndex: Int { min(total, completed + failed + 1) }
 
-    func start(game: Game, context: ModelContext) {
-        guard phase != .running else { return }
+    /// Makes clips for the game's pending marks. Returns false if a batch is already running
+    /// anywhere in the app.
+    @discardableResult
+    func start(game: Game, context: ModelContext) -> Bool {
+        guard phase != .running, !Self.isBusy else { return false }
+        Self.isBusy = true
         let marks = game.pendingMarks
         total = marks.count
         completed = 0
         failed = 0
         currentProgress = 0
+        backgroundTimeExpired = false
         phase = .running
+        // Listed until the batch ends on its own or the parent stops it, so a run the system cuts
+        // short (or a crash) is picked up again at the next launch.
+        gameID = game.id
+        unfinished.add(game.id)
+        backgroundTask = backgroundTime.begin(name: "ClipExtraction") { [weak self] in
+            self?.backgroundTimeRanOut()
+        }
         runTask = Task { await run(game: game, marks: marks, context: context) }
+        return true
     }
 
+    /// The parent stopped: the remaining marks wait on the game page and aren't resumed automatically.
     func cancel() {
-        runTask?.cancel()
+        switch phase {
+        case .running:
+            runTask?.cancel()
+        case .interrupted:
+            if let gameID { unfinished.remove(gameID) }
+            phase = .cancelled
+        default:
+            break
+        }
+    }
+
+    /// iOS is about to suspend the app. Cancel the current export and delete its partial file now,
+    /// and give the background time back at once: iOS kills apps that hold it past expiry.
+    /// Finished clips, marks, and the game video are untouched.
+    private func backgroundTimeRanOut() {
+        Self.log.info("Background time ran out; stopping clip-making to resume later")
+        if phase == .running {
+            backgroundTimeExpired = true
+            runTask?.cancel()
+            if let currentPartial { StorageManager.removeFile(at: currentPartial) }
+        }
+        endBackgroundTime()
+    }
+
+    private func endBackgroundTime() {
+        guard let task = backgroundTask else { return }
+        backgroundTask = nil
+        backgroundTime.end(task)
     }
 
     private func run(game: Game, marks: [Mark], context: ModelContext) async {
-        let backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "ClipExtraction") { [weak self] in
-            self?.cancel()
+        defer {
+            endBackgroundTime()
+            Self.isBusy = false
         }
-        defer { UIApplication.shared.endBackgroundTask(backgroundTask) }
 
         let source = StorageManager.gameVideoURL(for: game)
         let preRoll = ClipSettings.preRoll
@@ -82,6 +141,13 @@ final class ClipExtractor {
         for mark in marks {
             if Task.isCancelled { break }
             currentProgress = 0
+            // Already has its clip (e.g. made just before the app was closed): never make a second one.
+            if game.clips.contains(where: { $0.id == mark.id || $0.markSeconds.map { abs($0 - mark.offsetSeconds) < 0.001 } == true }) {
+                mark.isExtracted = true
+                try? context.save()
+                completed += 1
+                continue
+            }
             let window = ClipWindow.around(
                 mark: mark.offsetSeconds,
                 preRoll: preRoll,
@@ -95,12 +161,20 @@ final class ClipExtractor {
                 continue
             }
 
-            let clipID = UUID()
+            // Named after its mark, so a clip whose file was finished but never recorded (the app
+            // was closed between the two) is found and adopted instead of exported again.
+            let clipID = mark.id
             let filename = StorageManager.makeClipFilename(id: clipID)
             let destination = StorageManager.clipURL(filename: filename)
             do {
-                try await Self.export(source: source, window: window, to: destination) { [weak self] value in
-                    self?.currentProgress = value
+                if StorageManager.fileExists(at: destination) {
+                    Self.log.info("Adopting finished clip file for mark at \(mark.offsetSeconds)s")
+                } else {
+                    currentPartial = StorageManager.partialURL(for: destination)
+                    defer { currentPartial = nil }
+                    try await Self.export(source: source, window: window, to: destination) { [weak self] value in
+                        self?.currentProgress = value
+                    }
                 }
                 let clip = Clip(
                     id: clipID,
@@ -128,7 +202,12 @@ final class ClipExtractor {
         currentProgress = 0
         game.isProcessed = game.marks.allSatisfy(\.isExtracted)
         try? context.save()
-        phase = Task.isCancelled ? .cancelled : .finished
+        if backgroundTimeExpired {
+            phase = .interrupted
+        } else {
+            unfinished.remove(game.id)
+            phase = Task.isCancelled ? .cancelled : .finished
+        }
     }
 
     /// Re-cuts `clip` from the full game video to `window`, replacing its file in place (same

@@ -199,6 +199,9 @@ size, every clip matched its window to within 1 ms, and nothing was orphaned aft
 | 2 | Slow mo is not offered on a clip that starts at 0:00 and is short, on 30 fps footage. Every phone file has a 0.2 s start-up gap after frame 1; in a 4 s window that drags the measured rate to 27.25 fps, under the 28 fps cutoff for 0.5×. With a 10 s window (tap at 7 s) it reads 28.9–29.6 fps and 0.5× is offered, but 151837 came within 0.9 fps of the cutoff. Extends open question 4. | None. Only a missing feature on the first seconds of a game. | trial: 27.25 fps; run6 first clips 28.85–29.60 |
 | 3 | Imported games are dated when the recording **ended**, not when it started: the app uses the file's creation date, which Samsung stamps at the end. Games are 4–16 min late (132814 shows 13:44 for a 13:28 start). | None. Display and sort order only. | `importedCreatedAt` per video above |
 
+Bugs 1 and 2 were fixed on 2026-11-02 ([0017](../decisions/0017-background-clip-resume.md),
+[0018](../decisions/0018-frame-rate-from-frame-gaps.md)); bug 3 is open.
+
 Not bugs:
 
 - The Simulator log shows `VTCompression … err=-12900` 50 times. It's software-encoder noise; every export still

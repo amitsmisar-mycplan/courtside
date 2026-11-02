@@ -11,6 +11,16 @@ Device: founder's son's iPhone (confirmed 2026-10-07).
 - [ ] Start recording, swipe the app away (force-quit), reopen → the recording comes back as a game with its marks
 - [ ] Start recording, call the phone → recording stops, game is saved with an explanation
 
+## Background clip-making ([decision 0017](../decisions/0017-background-clip-resume.md))
+- [ ] Import a long game (10+ min), tap 8+ marks, Done → "Making clip 1 of 8"
+- [ ] After the first clip, switch to another app for 1 minute (use it; don't just lock the phone)
+- [ ] Return → the screen said "Paused" or kept going, then "Finishing your clips" and it continues by itself
+- [ ] Game page: one clip per mark, no duplicates, earlier clips play; the full game video is still there
+- [ ] Start again on another game, switch apps, then swipe Courtside away in the app switcher; reopen → "Finishing your
+      clips" opens by itself and makes only the missing clips
+- [ ] Tap Stop mid-run, close and reopen the app → nothing resumes by itself; "Make N Clips" waits on the game page
+- [ ] Slow Mo on the game's first clip (tap in the first 10 s): 0.5× is offered on 30 fps footage ([0018](../decisions/0018-frame-rate-from-frame-gaps.md))
+
 ## Acceptance test (spec) — do not skip #1
 
 - [ ] 1. Record 90 continuous minutes on a tripod in a gym-sized room

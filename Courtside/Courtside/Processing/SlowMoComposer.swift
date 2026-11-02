@@ -17,12 +17,37 @@ enum SlowMoError: LocalizedError {
 enum SlowMoComposer {
     private static let timescale: CMTimeScale = 600
 
-    /// Frame rate of the clip's video track (not the asset), which caps the available speeds.
+    /// Real frame rate of the clip's video track (not the asset), which caps the available speeds.
+    /// Measured from the typical gap between frames, so the start-up pause in phone recordings
+    /// doesn't drag it down (decision 0018). Reads frame timestamps only; nothing is decoded.
+    /// Falls back to the track's average rate if the timestamps can't be read.
     static func videoFrameRate(of url: URL) async throws -> Float {
-        guard let track = try await AVURLAsset(url: url).loadTracks(withMediaType: .video).first else {
+        let asset = AVURLAsset(url: url)
+        guard let track = try await asset.loadTracks(withMediaType: .video).first else {
             throw SlowMoError.noVideoTrack
         }
+        if let measured = frameTimes(of: track, in: asset).flatMap(SlowMotion.frameRate(presentationTimes:)) {
+            return measured
+        }
         return try await track.load(.nominalFrameRate)
+    }
+
+    /// Presentation times of the first `limit` frames, read without decoding.
+    private static func frameTimes(of track: AVAssetTrack, in asset: AVAsset, limit: Int = 900) -> [Double]? {
+        guard let reader = try? AVAssetReader(asset: asset) else { return nil }
+        let output = AVAssetReaderTrackOutput(track: track, outputSettings: nil)
+        output.alwaysCopiesSampleData = false
+        guard reader.canAdd(output) else { return nil }
+        reader.add(output)
+        guard reader.startReading() else { return nil }
+        defer { reader.cancelReading() }
+        var times: [Double] = []
+        while times.count < limit, let sample = output.copyNextSampleBuffer() {
+            guard CMSampleBufferGetNumSamples(sample) > 0 else { continue }
+            let time = CMSampleBufferGetPresentationTimeStamp(sample).seconds
+            if time.isFinite { times.append(time) }
+        }
+        return times
     }
 
     /// The clip's size as it appears on screen: the stored size with the track's rotation applied.

@@ -41,6 +41,15 @@ Built on `feature/export-vertical`. Device timing still to measure.
 marked, extracted, trimmed, exported vertical and deleted across the 5 Nov 1 videos (51 min, 15.9 GB): 40 of 40 clips,
 0 failures, no orphans ([results](../testing/corpus-nov-1.md#stress-test)). Three bugs found, none touching footage.
 
+**Fix: background clip-making** — clip-making stops cleanly when iOS ends background time (current partial deleted,
+everything else untouched) and finishes the missing clips by itself on return or next launch, under "Finishing your
+clips"; never remakes or duplicates a clip ([0017](../decisions/0017-background-clip-resume.md)). Simulator-verified with
+a force-quit; device check in [device-acceptance](../testing/device-acceptance.md#background-clip-making).
+
+**Fix: slow-mo frame rate** — measured from the median gap between frames, so the start-up pause in phone recordings and
+very short clips no longer switch off 0.5× on 30 fps footage ([0018](../decisions/0018-frame-rate-from-frame-gaps.md),
+closes open question 4).
+
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).

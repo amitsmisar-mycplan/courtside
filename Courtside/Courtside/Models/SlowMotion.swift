@@ -49,6 +49,19 @@ enum SlowMotion {
     /// Shortest slow segment the editor allows.
     static let minimumSegment: Double = 0.5
 
+    /// Frame rate from the typical (median) gap between frames, given each frame's presentation time
+    /// in seconds, in any order. Phone recordings pause ~0.2 s after their first frame; an average
+    /// over a short clip that starts at 0:00 counts that pause and reads 27–29 fps for 30 fps
+    /// footage. The median ignores it (decision 0018). Nil with fewer than three frames.
+    static func frameRate(presentationTimes: [Double]) -> Float? {
+        let times = presentationTimes.sorted()
+        let gaps = zip(times.dropFirst(), times).map { $0 - $1 }.filter { $0 > 0.0001 }.sorted()
+        guard gaps.count >= 2 else { return nil }
+        let middle = gaps.count / 2
+        let median = gaps.count.isMultiple(of: 2) ? (gaps[middle - 1] + gaps[middle]) / 2 : gaps[middle]
+        return Float(1 / median)
+    }
+
     static func availableSpeeds(frameRate: Float) -> [SlowMoSpeed] {
         SlowMoSpeed.allCases.filter { frameRate >= $0.minimumSourceFrameRate }
     }

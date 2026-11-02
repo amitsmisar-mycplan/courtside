@@ -17,7 +17,7 @@ All optional → SwiftData automatic lightweight migration; verified on a store 
 unedited default clips. Only test data predates it.
 
 ## Frame-rate cutoffs
-Read from the clip's **video track** `nominalFrameRate`.
+Read from the clip's **video track** `nominalFrameRate`. *Revised by [0018](0018-frame-rate-from-frame-gaps.md): now measured from the median gap between frames, so a start-up pause or a very short clip no longer under-reads.*
 `0.25×` needs ≥ 55 fps, `0.5×` needs ≥ 28 fps — slightly under 60/30 because phones report 59.94/29.97 and lower with variable
 frame rate. 24/25 fps → no slow motion; 50 fps → 0.5× only. Clip export preserves 60 fps (tested).
 

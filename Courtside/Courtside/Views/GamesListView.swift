@@ -14,6 +14,8 @@ struct GamesListView: View {
     @State private var showSettings = false
     @State private var showRecording = false
     @State private var pickerError: String?
+    /// A game whose clip-making iOS cut off, being finished now (decision 0017).
+    @State private var finishingGame: Game?
 
     var body: some View {
         NavigationStack {
@@ -79,6 +81,10 @@ struct GamesListView: View {
         .fullScreenCover(isPresented: $showRecording) {
             RecordingView(modelContext: modelContext)
         }
+        .fullScreenCover(item: $finishingGame, onDismiss: finishNextGame) { game in
+            ProcessingView(game: game, modelContext: modelContext, resuming: true)
+        }
+        .task { finishNextGame() }
         .confirmationDialog(
             "Delete this game?",
             isPresented: Binding(get: { gamePendingDelete != nil }, set: { if !$0 { gamePendingDelete = nil } }),
@@ -114,6 +120,12 @@ struct GamesListView: View {
                 Text("\(Format.bytes(games.reduce(0) { $0 + $1.storageBytes })) used")
             }
         }
+    }
+
+    /// One game at a time; each finished screen hands over to the next when it closes.
+    private func finishNextGame() {
+        guard !AppEnvironment.isUnitTesting else { return }
+        finishingGame = UnfinishedClips().gamesToFinish(from: games).first
     }
 
     private func deleteTitle(clipCount: Int) -> String {

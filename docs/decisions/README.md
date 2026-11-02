@@ -20,3 +20,5 @@ One file per decision that deviates from or extends the spec. Add new ones with 
 | [0014](0014-undo-stack-and-clip-delete.md) | Repeatable Undo by mark ID; delete clips by swipe or selection | Accepted |
 | [0015](0015-clip-trim.md) | Trim a clip: 30 s before / 15 s after the tap, re-cut through ClipExtractor; replaces nudge | Accepted |
 | [0016](0016-export-to-photos.md) | Save to Photos: Original or Vertical 9:16 with blurred background; same preset | Accepted |
+| [0017](0017-background-clip-resume.md) | Clip-making stops cleanly when background time runs out and finishes the missing clips later | Accepted — device test pending |
+| [0018](0018-frame-rate-from-frame-gaps.md) | Slow-mo frame rate from the median gap between frames (answers open question 4) | Accepted |

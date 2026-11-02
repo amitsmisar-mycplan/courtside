@@ -4,10 +4,14 @@ import SwiftUI
 struct ProcessingView: View {
     let game: Game
     let modelContext: ModelContext
+    /// Picking up clips that iOS cut off earlier (decision 0017).
+    var resuming = false
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @State private var extractor = ClipExtractor()
     @State private var askAboutVideo = false
+    @State private var isFinishing = false
 
     var body: some View {
         VStack(spacing: 28) {
@@ -23,16 +27,22 @@ struct ProcessingView: View {
                     title: "Stopped",
                     detail: "\(extractor.completed) clips made. The rest will be waiting on the game page."
                 )
+            case .interrupted:
+                summary(
+                    icon: "pause.circle",
+                    title: "Paused",
+                    detail: "Courtside was in the background too long. Your clips will finish when you come back."
+                )
             }
             Spacer()
             Button {
-                if extractor.phase == .running {
+                if isStoppable {
                     extractor.cancel()
                 } else {
                     dismiss()
                 }
             } label: {
-                Text(extractor.phase == .running ? "Stop" : "Done")
+                Text(isStoppable ? "Stop" : "Done")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -42,13 +52,16 @@ struct ProcessingView: View {
         .interactiveDismissDisabled()
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
+            isFinishing = resuming
             extractor.start(game: game, context: modelContext)
         }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
             extractor.cancel()
         }
+        .onChange(of: scenePhase) { _, _ in resumeIfInterrupted() }
         .onChange(of: extractor.phase) { _, phase in
+            resumeIfInterrupted()
             if phase == .finished, extractor.completed > 0, game.isVideoAvailable, !game.keepsVideo {
                 askAboutVideo = true
             }
@@ -66,8 +79,24 @@ struct ProcessingView: View {
         }
     }
 
+    private var isStoppable: Bool {
+        extractor.phase == .running || extractor.phase == .interrupted
+    }
+
+    /// Back on screen after iOS cut the run short: make the clips that are still missing.
+    private func resumeIfInterrupted() {
+        guard extractor.phase == .interrupted, scenePhase == .active else { return }
+        isFinishing = true
+        extractor.start(game: game, context: modelContext)
+    }
+
     private var running: some View {
         VStack(spacing: 20) {
+            if isFinishing {
+                Text("Finishing your clips")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+            }
             Text("Making clip \(extractor.currentIndex) of \(extractor.total)")
                 .font(.title2.weight(.semibold))
                 .monospacedDigit()
