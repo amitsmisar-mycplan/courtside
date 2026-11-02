@@ -144,7 +144,8 @@ struct ImportFlowView: View {
                     videoFilename: video.filename,
                     durationSeconds: video.durationSeconds,
                     source: .imported,
-                    videoFileSize: video.fileSize
+                    videoFileSize: video.fileSize,
+                    team: LabelSettings.myTeam
                 )
                 context.insert(game)
                 try context.save()

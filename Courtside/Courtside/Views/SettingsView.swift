@@ -4,6 +4,8 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage(ClipSettings.preRollKey) private var preRoll = ClipWindow.defaultPreRoll
     @AppStorage(ClipSettings.postRollKey) private var postRoll = ClipWindow.defaultPostRoll
+    @AppStorage(LabelSettings.myTeamKey) private var myTeam = ""
+    @AppStorage(LabelSettings.exportLabelKey) private var exportLabel = ExportLabelMode.openAndClose
 
     var body: some View {
         NavigationStack {
@@ -19,6 +21,19 @@ struct SettingsView: View {
                     Text("Clip length")
                 } footer: {
                     Text("You tap after the play happens, so most of each clip comes from before the tap. Changes apply to clips made from now on.")
+                }
+                Section {
+                    TextField("My team", text: $myTeam)
+                        .textInputAutocapitalization(.words)
+                    Picker("Label on exported clips", selection: $exportLabel) {
+                        ForEach(ExportLabelMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                } header: {
+                    Text("Game labels")
+                } footer: {
+                    Text("New games start with your team; change it on any game. Saved clips show the team, opponent, tournament and date for a few seconds at the start and end. Never the score.")
                 }
                 Section {
                     Button("Restore Defaults") {

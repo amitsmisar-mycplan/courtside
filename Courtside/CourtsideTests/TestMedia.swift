@@ -13,10 +13,12 @@ enum TestMedia {
         fps: Int,
         transform: CGAffineTransform = .identity,
         firstFrameGap: Double = 0,
+        size: CGSize = CGSize(width: 320, height: 180),
+        gray: Int32? = nil,
         withTone: Bool
     ) async throws {
         guard withTone else {
-            try await writeFrames(to: url, seconds: seconds, fps: fps, transform: transform, firstFrameGap: firstFrameGap)
+            try await writeFrames(to: url, seconds: seconds, fps: fps, transform: transform, firstFrameGap: firstFrameGap, size: size, gray: gray)
             return
         }
         // Intermediates go to the temp folder, never next to `url` (which may be the app's
@@ -28,7 +30,7 @@ enum TestMedia {
             try? FileManager.default.removeItem(at: videoURL)
             try? FileManager.default.removeItem(at: audioURL)
         }
-        try await writeFrames(to: videoURL, seconds: seconds, fps: fps, transform: transform, firstFrameGap: firstFrameGap)
+        try await writeFrames(to: videoURL, seconds: seconds, fps: fps, transform: transform, firstFrameGap: firstFrameGap, size: size, gray: gray)
         try writeTone(to: audioURL, seconds: Double(seconds))
 
         // Mux video + audio with a passthrough export.
@@ -52,10 +54,11 @@ enum TestMedia {
 
     /// With `firstFrameGap`, frame 1 arrives that long after frame 0 instead of one frame later,
     /// and the rest follow at `fps` from there (same frame count, slightly longer video).
+    /// With `gray`, every frame is that one level instead of stepping frame to frame.
     private static func writeFrames(
-        to url: URL, seconds: Int, fps: Int, transform: CGAffineTransform, firstFrameGap: Double = 0
+        to url: URL, seconds: Int, fps: Int, transform: CGAffineTransform, firstFrameGap: Double = 0,
+        size: CGSize, gray: Int32?
     ) async throws {
-        let size = CGSize(width: 320, height: 180)
         let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
             AVVideoCodecKey: AVVideoCodecType.h264,
@@ -76,7 +79,7 @@ enum TestMedia {
             var buffer: CVPixelBuffer?
             CVPixelBufferPoolCreatePixelBuffer(nil, adaptor.pixelBufferPool!, &buffer)
             CVPixelBufferLockBaseAddress(buffer!, [])
-            memset(CVPixelBufferGetBaseAddress(buffer!), Int32(frame * 4 % 256), CVPixelBufferGetDataSize(buffer!))
+            memset(CVPixelBufferGetBaseAddress(buffer!), gray ?? Int32(frame * 4 % 256), CVPixelBufferGetDataSize(buffer!))
             CVPixelBufferUnlockBaseAddress(buffer!, [])
             let time = frame == 0 || firstFrameGap <= 0
                 ? CMTime(value: CMTimeValue(frame), timescale: CMTimeScale(fps))

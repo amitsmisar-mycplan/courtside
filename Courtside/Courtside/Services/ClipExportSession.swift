@@ -26,15 +26,25 @@ final class ClipExportSession: Identifiable {
     private(set) var progress: Double = 0
     /// The source as shown (rotation applied); nil until loaded.
     private(set) var sourceSize: CGSize?
+    /// The game label to burn in, or nil when the setting is Off or the game has no label text.
+    let label: LabelStep.LabelText?
 
     @ObservationIgnored private let photos: PhotoLibrarySaving
     @ObservationIgnored private var task: Task<Void, Never>?
 
-    init(clipID: UUID, source: URL, photos: PhotoLibrarySaving = PhotoLibraryService()) {
+    init(clipID: UUID, source: URL, label: LabelStep.LabelText? = nil, photos: PhotoLibrarySaving = PhotoLibraryService()) {
         self.clipID = clipID
         self.source = source
+        self.label = label
         self.photos = photos
     }
+
+    func plan(for format: ExportFormat) -> ExportPlan {
+        ExportPlan(source: source, format: format, frameSteps: label.map { [LabelStep(label: $0)] } ?? [])
+    }
+
+    /// True when Original has to be rendered to add the label (slower than saving the clip as it is).
+    var addsLabel: Bool { label != nil }
 
     var isBusy: Bool { phase == .exporting || phase == .saving }
 
@@ -70,7 +80,7 @@ final class ClipExportSession: Identifiable {
             return
         }
 
-        let plan = ExportPlan(source: source, format: format)
+        let plan = plan(for: format)
         if plan.isUnchangedSource {
             // Nothing to render: save the clip itself, no temporary file.
             await save(source, format: format)

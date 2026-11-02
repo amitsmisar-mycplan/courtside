@@ -22,3 +22,4 @@ One file per decision that deviates from or extends the spec. Add new ones with 
 | [0016](0016-export-to-photos.md) | Save to Photos: Original or Vertical 9:16 with blurred background; same preset | Accepted |
 | [0017](0017-background-clip-resume.md) | Clip-making stops cleanly when background time runs out and finishes the missing clips later | Accepted — device test pending |
 | [0018](0018-frame-rate-from-frame-gaps.md) | Slow-mo frame rate from the median gap between frames (answers open question 4) | Accepted |
+| [0019](0019-game-labels.md) | Team and tournament on games; burned-in label at the open and close of exported clips | Accepted |

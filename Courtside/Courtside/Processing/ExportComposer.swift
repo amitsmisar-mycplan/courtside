@@ -36,7 +36,10 @@ enum ExportComposer {
         let background: CGRect? = plan.format == .vertical && foreground.size != canvas
             ? VerticalLayout.background(videoSize: videoSize, canvas: canvas)
             : nil
-        let steps = plan.frameSteps
+        // Steps are timed by the exported file's own length: a trimmed or slow-mo clip gets its
+        // closing label at its real end.
+        let duration = try await asset.load(.duration).seconds
+        let steps = plan.frameSteps.map { $0.prepared(canvas: canvas, duration: duration) }
         let canvasRect = CGRect(origin: .zero, size: canvas)
 
         let composition = try await AVMutableVideoComposition.videoComposition(with: asset) { request in

@@ -45,6 +45,12 @@ struct ExportSheet: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(format.title).font(.headline)
                                 Text(format.detail(sourceSize: session.sourceSize)).font(.subheadline).foregroundStyle(.secondary)
+                                if format == .original {
+                                    // Without a label Original saves the clip as it is, in about a second.
+                                    Text(session.addsLabel ? "Adding label, takes longer" : "Fast, no label")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                             Spacer()
                             Image(systemName: "square.and.arrow.down")
@@ -59,7 +65,7 @@ struct ExportSheet: View {
             }
         case .exporting:
             VStack(spacing: 14) {
-                Text("Making \(session.format == .vertical ? "vertical video" : "video")…").font(.headline)
+                Text("Making \(session.format == .vertical ? "vertical video" : "video")\(session.addsLabel ? " with label" : "")…").font(.headline)
                 ProgressView(value: session.progress)
                 Text("\(Int(session.progress * 100))%").monospacedDigit().foregroundStyle(.secondary)
             }

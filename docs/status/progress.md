@@ -50,6 +50,12 @@ a force-quit; device check in [device-acceptance](../testing/device-acceptance.m
 very short clips no longer switch off 0.5× on 30 fps footage ([0018](../decisions/0018-frame-rate-from-frame-gaps.md),
 closes open question 4).
 
+**Feature: game labels** — team and tournament on each game ("My team" setting prefills new games; tournament suggests
+names already used), rows titled "Team vs Opponent" with "Tournament · date" under it, and a label burned into saved clips
+for 2.5 s at the open and close (open only under 7 s), in both Original and Vertical. Setting: Off / Open and close.
+Original keeps its instant save when there's no label ([0019](../decisions/0019-game-labels.md)). Built on
+`feature/game-labels`.
+
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).
