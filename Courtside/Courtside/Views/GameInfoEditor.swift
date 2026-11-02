@@ -7,7 +7,11 @@ struct GameInfoEditor: View {
     let modelContext: ModelContext
 
     @Environment(\.dismiss) private var dismiss
+    /// For tournament suggestions: names already used on other games.
+    @Query private var games: [Game]
+    @State private var team: String
     @State private var opponent: String
+    @State private var tournament: String
     @State private var name: String
     @State private var date: Date
     @State private var ourScore: String
@@ -15,12 +19,14 @@ struct GameInfoEditor: View {
     @State private var notes: String
     @FocusState private var focus: Field?
 
-    private enum Field { case opponent, ourScore, theirScore }
+    private enum Field { case team, opponent, tournament, ourScore, theirScore }
 
     init(game: Game, modelContext: ModelContext) {
         self.game = game
         self.modelContext = modelContext
+        _team = State(initialValue: game.team ?? "")
         _opponent = State(initialValue: game.opponent ?? "")
+        _tournament = State(initialValue: game.tournament ?? "")
         _name = State(initialValue: game.label)
         _date = State(initialValue: game.recordedAt)
         _ourScore = State(initialValue: game.ourScore.map(String.init) ?? "")
@@ -32,11 +38,30 @@ struct GameInfoEditor: View {
         NavigationStack {
             Form {
                 Section {
+                    TextField("Team", text: $team)
+                        .textInputAutocapitalization(.words)
+                        .focused($focus, equals: .team)
+                        .submitLabel(.next)
+                        .onSubmit { focus = .opponent }
                     TextField("Opponent", text: $opponent)
                         .textInputAutocapitalization(.words)
                         .focused($focus, equals: .opponent)
                         .submitLabel(.next)
                         .onSubmit { focus = .ourScore }
+                    TextField("Tournament", text: $tournament)
+                        .textInputAutocapitalization(.words)
+                        .focused($focus, equals: .tournament)
+                        .submitLabel(.done)
+                    if focus == .tournament {
+                        ForEach(tournamentSuggestions, id: \.self) { name in
+                            Button {
+                                tournament = name
+                                focus = nil
+                            } label: {
+                                Label(name, systemImage: "clock.arrow.circlepath")
+                            }
+                        }
+                    }
                     DatePicker("Date", selection: $date, displayedComponents: .date)
                 }
 
@@ -80,6 +105,10 @@ struct GameInfoEditor: View {
         }
     }
 
+    private var tournamentSuggestions: [String] {
+        GameLabel.tournamentSuggestions(matching: tournament, in: games, excluding: game)
+    }
+
     private func scoreField(_ title: String, text: Binding<String>, field: Field) -> some View {
         TextField(title, text: text)
             .keyboardType(.numberPad)
@@ -94,7 +123,9 @@ struct GameInfoEditor: View {
     }
 
     private func save() {
-        game.opponent = opponent.trimmed.isEmpty ? nil : opponent.trimmed
+        game.team = team.nonEmpty
+        game.opponent = opponent.nonEmpty
+        game.tournament = tournament.nonEmpty
         game.label = name.trimmed
         // The picker changes only the day, so the time of day is kept.
         game.recordedAt = date

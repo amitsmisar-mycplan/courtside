@@ -177,9 +177,10 @@ private struct GameRow: View {
                 }
                 SourceBadge(source: game.source)
             }
-            Text(game.recordedAt.formatted(date: .abbreviated, time: .shortened))
+            Text(game.listSubtitle)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
             HStack(spacing: 12) {
                 Label("\(game.clips.count)", systemImage: "film.stack")
                 Label(Format.duration(game.durationSeconds), systemImage: "clock")

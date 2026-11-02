@@ -97,7 +97,8 @@ final class RecordingSession {
                 videoFilename: url.lastPathComponent,
                 durationSeconds: 0,
                 source: .recorded,
-                videoFileSize: 0
+                videoFileSize: 0,
+                team: LabelSettings.myTeam
             )
             context.insert(game)
             try? context.save()

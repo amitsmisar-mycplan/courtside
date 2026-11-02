@@ -194,6 +194,19 @@ Decision [0016](../decisions/0016-export-to-photos.md).
 Simulator encoding is software; a device should be much faster. **Not verified:** device timing, how the saved video looks
 in the Photos app and Instagram/TikTok, audio sync by ear.
 
+## Game labels — 2026-11-02, iPhone 17 Simulator
+
+Real footage: the 4K `20261031_132814` recording (the leftover "Recovered" game), on the existing store.
+- [x] Existing store opened on the new schema: every game, mark and clip kept; team and tournament empty
+- [x] Edit screen shows Team, Opponent, Tournament, Date; saved "Eagles" / "Lakers" / "Fall Classic"
+- [x] Title became "Eagles vs Lakers"; list row second line "Fall Classic · Nov 2, 2026 at 08:22"; other games unchanged
+- [x] Settings → Game labels: "My team" field and "Label on exported clips" (Open and close by default)
+- [x] Export sheet: "Adding label, takes longer" under Original; progress reads "Making video with label…"
+- [x] Original (16:9, 9.7 s clip) frames from the saved file: label lower-left at 1 s and 8.5 s, nothing at 5 s
+- [x] Vertical (9:16) frames: label at 1 s on the blurred area below the video, above the caption band; nothing at 5 s
+- Screenshots and frames stayed on this Mac (scratchpad); none are in the repo
+- [ ] Tournament suggestions (unit-tested; no second game with a tournament in this store yet)
+
 ## Not yet verified
 
 - [ ] Real game **filmed on a phone camera** from the stands (landscape, with audio, 30/60 fps, rotation metadata) — the 2026-09-30 run used a screen recording

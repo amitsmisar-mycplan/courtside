@@ -43,10 +43,18 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     static let verticalRenderSize = CGSize(width: 1080, height: 1920)
 }
 
-/// One per-frame drawing step, applied in order on top of the layout. The watermark (feature 7)
-/// slots in here. `canvas` is the output frame, origin bottom-left as in Core Image.
+/// One per-frame drawing step, applied in order on top of the layout: the game label now
+/// (`LabelStep`, drawn by `TimedOverlay`), the watermark (feature 7) later. `canvas` is the output
+/// frame, origin bottom-left as in Core Image; `time` is seconds into the exported video.
 protocol ExportFrameStep: Sendable {
+    /// Called once before the first frame, with the output size and length, so a step can draw what
+    /// it needs once (a label image) and time itself by the final length. Defaults to `self`.
+    func prepared(canvas: CGSize, duration: Double) -> ExportFrameStep
     func apply(to image: CIImage, canvas: CGRect, time: Double) -> CIImage
+}
+
+extension ExportFrameStep {
+    func prepared(canvas: CGSize, duration: Double) -> ExportFrameStep { self }
 }
 
 /// Everything an export does, in pipeline order:
@@ -55,7 +63,7 @@ protocol ExportFrameStep: Sendable {
 ///    output is a file today; a slow-mo *step* would build an `AVComposition` from this source).
 /// 2. **Timeline** — reserved for steps that change length, such as an end card (feature 7). None yet.
 /// 3. **Layout** — the output frame: as-is, or vertical with a blurred background.
-/// 4. **Frame steps** — drawn over each laid-out frame (watermark).
+/// 4. **Frame steps** — drawn over each laid-out frame: the game label (decision 0019), later the watermark.
 /// 5. **Export** — `ClipExtractor`, HEVC Highest Quality, never passthrough.
 struct ExportPlan {
     var source: URL

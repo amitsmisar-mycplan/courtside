@@ -268,7 +268,8 @@ enum StorageManager {
                 videoFilename: url.lastPathComponent,
                 durationSeconds: duration,
                 source: .recorded,
-                videoFileSize: fileSize(at: url)
+                videoFileSize: fileSize(at: url),
+                team: LabelSettings.myTeam
             )
             context.insert(game)
             log.info("Recovered orphaned video \(url.lastPathComponent) as a game")

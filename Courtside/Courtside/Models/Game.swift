@@ -38,6 +38,9 @@ enum GameSource: String, Codable {
     var ourScore: Int?
     var theirScore: Int?
     var notes: String?
+    /// Our team and the tournament, optional (decision 0019). Team starts from the "My team" setting.
+    var team: String?
+    var tournament: String?
     @Relationship(deleteRule: .cascade, inverse: \Mark.game) var marks: [Mark]
     @Relationship(deleteRule: .cascade, inverse: \Clip.game) var clips: [Clip]
 
@@ -48,7 +51,8 @@ enum GameSource: String, Codable {
         videoFilename: String,
         durationSeconds: Double,
         source: GameSource,
-        videoFileSize: Int64
+        videoFileSize: Int64,
+        team: String? = nil
     ) {
         self.id = id
         self.label = label
@@ -58,6 +62,7 @@ enum GameSource: String, Codable {
         self.source = source
         self.isProcessed = false
         self.videoFileSize = videoFileSize
+        self.team = team
         self.isVideoAvailable = true
         self.processedAt = nil
         self.marks = []
@@ -70,11 +75,22 @@ extension Game {
 
     static let untitled = "Untitled game"
 
-    /// Row and screen title: "vs <opponent>", else the name, else "Untitled game".
+    /// Row and screen title: "<team> vs <opponent>" when both are set, else "vs <opponent>", else the
+    /// name, else "Untitled game".
     var displayTitle: String {
-        if let opponent = opponent?.trimmed, !opponent.isEmpty { return "vs \(opponent)" }
+        if let opponent = opponent?.nonEmpty {
+            if let team = team?.nonEmpty { return "\(team) vs \(opponent)" }
+            return "vs \(opponent)"
+        }
         let name = label.trimmed
         return name.isEmpty ? Self.untitled : name
+    }
+
+    /// Row subtitle: "<tournament> · <date>", or just the date.
+    var listSubtitle: String {
+        let date = recordedAt.formatted(date: .abbreviated, time: .shortened)
+        guard let tournament = tournament?.nonEmpty else { return date }
+        return "\(tournament) · \(date)"
     }
 
     /// "54–48" (us first), with "?" for a side not entered yet; nil when neither is set.
@@ -111,4 +127,9 @@ extension Game {
 
 extension String {
     var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
+    /// Trimmed, or nil when nothing is left.
+    var nonEmpty: String? {
+        let value = trimmed
+        return value.isEmpty ? nil : value
+    }
 }
