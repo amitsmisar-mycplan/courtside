@@ -74,6 +74,13 @@ struct ExportPlan {
     var isUnchangedSource: Bool { format == .original && frameSteps.isEmpty }
 }
 
+extension ExportPlan {
+    /// A clip's plan as Save to Photos and Share build it: the game label as a frame step when one applies.
+    init(source: URL, format: ExportFormat, label: LabelStep.LabelText?) {
+        self.init(source: source, format: format, frameSteps: label.map { [LabelStep(label: $0)] } ?? [])
+    }
+}
+
 /// Where the foreground and background go in a vertical frame. Pure geometry, origin bottom-left.
 enum VerticalLayout {
     /// The video scaled to fit the canvas (full width for landscape footage), centered.
