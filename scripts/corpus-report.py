@@ -19,13 +19,15 @@ def main(path):
     out = []
     out.append(
         f"Seed {report['seed']}, {report['marksPerGame']} planned marks per game (+5 for the undo check, 3 undone), "
+        f"trim / vertical / delete on {report.get('trimmedClipsPerGame', 3)} clip(s) per game, "
         f"clip window {report['preRoll']:g} s before / {report['postRoll']:g} s after. "
+        "Timings are from the Simulator, which encodes video in software; a device's hardware encoder is much faster, "
+        "so these times say nothing about speed on a phone. "
         f"Peak memory over the whole run: {report.get('peakMemoryMB', 0):.0f} MB."
     )
     out.append("")
     for video in videos:
         clips = video["clipSeconds"]
-        slow = [s for s in clips if s > 60]
         checks = video["markChecks"]
         out.append(f"### {video['file']}")
         out.append("")
@@ -42,8 +44,7 @@ def main(path):
         if clips:
             out.append(
                 f"| Extract | {video['clipsMade']} clips ({video['clipsFailed']} failed) in {mmss(video['extractSeconds'])}; "
-                f"per clip median {sorted(clips)[len(clips) // 2]:.1f} s, slowest {max(clips):.1f} s; "
-                f"**{len(slow)} over 60 s** |"
+                f"per clip median {sorted(clips)[len(clips) // 2]:.1f} s, longest {max(clips):.1f} s |"
             )
         out.append(
             f"| Clip checks | {video['clipsChecked']} checked (file, window, duration ±0.15 s, video+audio, shape, thumbnail); "
@@ -71,7 +72,7 @@ def main(path):
     out.append(f"| Import | {sum(v['importSeconds'] for v in videos):.0f} s in total |")
     out.append(f"| Clips | {total_clips} made, {sum(v['clipsFailed'] for v in videos)} failed, {sum(v['clipsChecked'] for v in videos)} checked |")
     if all_clips:
-        out.append(f"| Clip time | {mmss(total_extract)} in total; median {sorted(all_clips)[len(all_clips) // 2]:.1f} s; {sum(1 for s in all_clips if s > 60)} over 60 s |")
+        out.append(f"| Clip time | {mmss(total_extract)} in total; median {sorted(all_clips)[len(all_clips) // 2]:.1f} s per clip |")
     out.append(f"| Failures | {sum(len(v['failures']) for v in videos)} |")
     out.append("")
 

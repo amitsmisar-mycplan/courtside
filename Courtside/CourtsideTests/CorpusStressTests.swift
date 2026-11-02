@@ -11,8 +11,10 @@ import XCTest
 /// `MarkingSession`, undo, extract through `ClipExtractor`, check every clip, then trim, export
 /// vertical and delete three of them, check for orphans, and clean up everything it created.
 ///
-/// Optional: `COURTSIDE_CORPUS_MARKS` (marks per game, default 40), `COURTSIDE_CORPUS_FILES`
-/// (comma-separated file names to run), `COURTSIDE_CORPUS_REPORT` (where to write the JSON report).
+/// Optional: `COURTSIDE_MARKS_PER_VIDEO` (default 40, at least 6 so every edge case is hit),
+/// `COURTSIDE_TRIMMED_CLIPS_PER_VIDEO` (clips that get the trim / vertical / delete checks, default 3),
+/// `COURTSIDE_CORPUS_FILES` (comma-separated file names to run), `COURTSIDE_CORPUS_REPORT` (JSON report path).
+/// Pass each to `xcodebuild` with the `TEST_RUNNER_` prefix.
 @MainActor
 final class CorpusStressTests: XCTestCase {
     private static let seed: UInt64 = 2026_11_01
@@ -26,7 +28,8 @@ final class CorpusStressTests: XCTestCase {
         }
         continueAfterFailure = true
         let folder = URL(fileURLWithPath: directory, isDirectory: true)
-        let markCount = Int(env["COURTSIDE_CORPUS_MARKS"] ?? "") ?? 40
+        let markCount = max(MarkPlan.minimumCount, Int(env["COURTSIDE_MARKS_PER_VIDEO"] ?? "") ?? 40)
+        let trimmedClips = max(1, Int(env["COURTSIDE_TRIMMED_CLIPS_PER_VIDEO"] ?? "") ?? 3)
         let only = Set((env["COURTSIDE_CORPUS_FILES"] ?? "").split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) })
 
         let names: [String]
@@ -44,11 +47,11 @@ final class CorpusStressTests: XCTestCase {
         StorageManager.prepareDirectories()
         let memory = MemorySampler()
         memory.start()
-        var report = CorpusReport(folder: folder.path, seed: Self.seed, marksPerGame: markCount,
+        var report = CorpusReport(folder: folder.path, seed: Self.seed, marksPerGame: markCount, trimmedClipsPerGame: trimmedClips,
                                   preRoll: ClipSettings.preRoll, postRoll: ClipSettings.postRoll)
         for (index, name) in names.enumerated() {
             var result = VideoResult(file: name)
-            await run(source: folder.appendingPathComponent(name), index: index, markCount: markCount, memory: memory, into: &result)
+            await run(source: folder.appendingPathComponent(name), index: index, markCount: markCount, trimmedClips: trimmedClips, memory: memory, into: &result)
             for failure in result.failures { XCTFail("\(name) · \(failure.step): \(failure.message)") }
             report.videos.append(result)
             writeReport(report)
@@ -61,7 +64,7 @@ final class CorpusStressTests: XCTestCase {
 
     // MARK: One video
 
-    private func run(source: URL, index: Int, markCount: Int, memory: MemorySampler, into result: inout VideoResult) async {
+    private func run(source: URL, index: Int, markCount: Int, trimmedClips: Int, memory: MemorySampler, into result: inout VideoResult) async {
         let container: ModelContainer
         do {
             container = try ModelContainer(for: Game.self, Mark.self, Clip.self,
@@ -210,19 +213,20 @@ final class CorpusStressTests: XCTestCase {
             await checkSlowMo(clip, context: context, into: &result)
         }
 
-        // d. Trim, vertical export and delete on three clips.
+        // d. Trim, vertical export and delete. With one clip, a mid-game one (a seeded pick); with
+        // three or more, also the first and last (window clamped at the video's edges).
         let sorted = newGame.sortedClips
-        if sorted.count >= 3 {
+        if sorted.count >= trimmedClips {
             var rng = SplitMix64(seed: Self.seed &+ 1000 &+ UInt64(index))
-            var picks = [sorted[0], sorted[sorted.count - 1]]
-            let middle = sorted[1..<(sorted.count - 1)]
-            picks.insert(middle[middle.startIndex + Int(rng.next() % UInt64(middle.count))], at: 1)
+            let inner = sorted.count > 2 ? Array(sorted[1..<(sorted.count - 1)]) : sorted
+            var picks = [inner[Int(rng.next() % UInt64(inner.count))]]
+            if trimmedClips >= 3 { picks = [sorted[0]] + picks + [sorted[sorted.count - 1]] }
             for clip in picks {
                 await trimExportDelete(clip, game: newGame, context: context, before: before, into: &result)
             }
             checkOrphans(game: newGame, before: before, into: &result)
         } else {
-            result.fail("trim/export/delete", "fewer than 3 clips")
+            result.fail("trim/export/delete", "fewer than \(trimmedClips) clips")
         }
         result.diskPeakMB = max(result.diskPeakMB, FileSnapshot.take().addedBytes(since: before) / 1_000_000)
     }
@@ -382,20 +386,22 @@ final class CorpusStressTests: XCTestCase {
 // MARK: - Mark plan
 
 /// Where to tap, repeatable from a seed: edges, overlaps and a close pair on purpose, the rest spread out.
+/// The first six always cover every case: one mark in the first 10 s, one in the last 3 s, two
+/// within 1 s, and two more whose windows overlap. Larger counts add a second edge mark at each
+/// end and a third overlapping mark before spreading the rest.
 struct MarkPlan {
+    static let minimumCount = 6
+
     let times: [Double]
     let undoTimes: [Double]
-    private let closePair: (Double, Double)
-    private let overlap: [Double]
 
     init(duration: Double, count: Int, seed: UInt64) {
         var rng = SplitMix64(seed: seed)
-        let edges = [1.0, 7.0, duration - 2.5, duration - 0.6]
         let pairAt = (duration * 0.3).rounded()
-        closePair = (pairAt, pairAt + 0.6)
         let overlapAt = (duration * 0.6).rounded()
-        overlap = [overlapAt, overlapAt + 5, overlapAt + 11]
-        var fixed = edges + [closePair.0, closePair.1] + overlap
+        let core = [7.0, pairAt, pairAt + 0.6, overlapAt, overlapAt + 8, duration - 0.6]
+        let extras = [1.0, duration - 2.5, overlapAt + 11]
+        var fixed = core + extras.prefix(max(0, count - core.count))
         // The rest, one per equal slice of the middle, at a random point in each slice.
         let remaining = max(0, count - fixed.count)
         let low = 12.0, high = duration - 15
@@ -427,8 +433,8 @@ struct MarkPlan {
             if b - a < 1 { checks.pairsUnder1s += 1 }
         }
         checks.spanCovered = ((sorted.last ?? 0) - (sorted.first ?? 0)) / max(duration, 1)
-        if checks.inFirst10s < 2 { checks.problems.append("fewer than 2 marks in the first 10 s") }
-        if checks.inLast3s < 2 { checks.problems.append("fewer than 2 marks in the last 3 s") }
+        if checks.inFirst10s < 1 { checks.problems.append("no mark in the first 10 s") }
+        if checks.inLast3s < 1 { checks.problems.append("no mark in the last 3 s") }
         if checks.pairsUnder1s < 1 { checks.problems.append("no two marks within 1 s") }
         if checks.pairsUnder13s < 1 { checks.problems.append("no overlapping windows") }
         if sorted.count != times.count { checks.problems.append("\(sorted.count) marks stored, \(times.count) planned") }
@@ -621,6 +627,7 @@ struct CorpusReport: Codable {
     let folder: String
     let seed: UInt64
     let marksPerGame: Int
+    let trimmedClipsPerGame: Int
     let preRoll: Double
     let postRoll: Double
     var videos: [VideoResult] = []
@@ -628,10 +635,9 @@ struct CorpusReport: Codable {
 
     var summary: String {
         videos.map { video in
-            let slowest = video.clipSeconds.max() ?? 0
-            return String(format: "%@: import %.1fs, %d/%d clips in %.0fs (slowest %.1fs), %d failures",
-                          video.file, video.importSeconds, video.clipsMade, video.plannedMarks + 2,
-                          video.extractSeconds, slowest, video.failures.count)
+            String(format: "%@: import %.1fs, %d/%d clips in %.0fs, %d failures",
+                   video.file, video.importSeconds, video.clipsMade, video.plannedMarks + 2,
+                   video.extractSeconds, video.failures.count)
         }.joined(separator: "\n")
     }
 }
