@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-10-30_
+_Last updated: 2026-11-02_
 
 | Step | What | Status |
 |---|---|---|
@@ -59,6 +59,9 @@ Original keeps its instant save when there's no label ([0019](../decisions/0019-
 **Feature: label on Share** — Share now sends the labelled Original when a label applies (rendered first, with
 progress and Cancel, temp file removed when the sheet closes); without a label it shares the clip instantly as before
 ([0020](../decisions/0020-label-on-share.md)). Built on `feature/label-on-share`.
+
+**Test Simulator** — automated builds and tests now run on a dedicated "Courtside Tests" Simulator (iPhone 17 Pro,
+iOS 27), never "iPhone 17", which is kept for manual testing. Command updated in CLAUDE.md, README and docs/testing.
 
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 

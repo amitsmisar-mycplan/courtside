@@ -9,7 +9,7 @@ Import a game video, tap through it when something good happens, get clips. On-d
 Open `Courtside/Courtside.xcodeproj` in Xcode, pick an iPhone simulator, Run. Tests: ⌘U, or
 
 ```
-xcodebuild -project Courtside/Courtside.xcodeproj -scheme Courtside -destination 'platform=iOS Simulator,name=iPhone 17' test
+xcodebuild -project Courtside/Courtside.xcodeproj -scheme Courtside -destination 'platform=iOS Simulator,name=Courtside Tests' test
 ```
 
 No third-party dependencies. New files dropped into `Courtside/Courtside/` are picked up automatically.
