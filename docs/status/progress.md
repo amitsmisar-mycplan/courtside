@@ -56,6 +56,10 @@ for 2.5 s at the open and close (open only under 7 s), in both Original and Vert
 Original keeps its instant save when there's no label ([0019](../decisions/0019-game-labels.md)). Built on
 `feature/game-labels`.
 
+**Feature: label on Share** — Share now sends the labelled Original when a label applies (rendered first, with
+progress and Cancel, temp file removed when the sheet closes); without a label it shares the clip instantly as before
+([0020](../decisions/0020-label-on-share.md)). Built on `feature/label-on-share`.
+
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).

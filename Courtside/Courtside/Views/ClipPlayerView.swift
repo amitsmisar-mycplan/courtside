@@ -12,6 +12,7 @@ struct ClipPlayerView: View {
     @State private var showSlowMo = false
     @State private var showTrim = false
     @State private var exportSession: ClipExportSession?
+    @State private var shareSession: ClipShareSession?
 
     private enum Version: Hashable {
         case original
@@ -77,7 +78,7 @@ struct ClipPlayerView: View {
 
                 HStack(spacing: 12) {
                     Button {
-                        ShareService.share(currentURL)
+                        share()
                     } label: {
                         Label("Share", systemImage: "square.and.arrow.up")
                             .frame(maxWidth: .infinity)
@@ -107,6 +108,9 @@ struct ClipPlayerView: View {
         }
         .sheet(item: $exportSession, onDismiss: { looper.load(currentURL) }) { session in
             ExportSheet(session: session)
+        }
+        .sheet(item: $shareSession, onDismiss: { looper.load(currentURL) }) { session in
+            ShareProgressSheet(session: session)
         }
         .sheet(isPresented: $showSlowMo) {
             SlowMoSheet(clip: clip, modelContext: modelContext)
@@ -152,6 +156,18 @@ struct ClipPlayerView: View {
             Text("The full game video was deleted, so this clip can't be trimmed.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    /// With the game label on, a labelled copy is made first (progress sheet); otherwise the
+    /// clip itself goes straight to the share sheet, as before.
+    private func share() {
+        let session = ClipShareSession(clipID: clip.id, source: currentURL, label: .forExport(game: clip.game))
+        if session.addsLabel {
+            looper.pause()
+            shareSession = session
+        } else {
+            session.start()
         }
     }
 

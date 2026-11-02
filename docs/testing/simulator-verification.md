@@ -207,6 +207,12 @@ Real footage: the 4K `20261031_132814` recording (the leftover "Recovered" game)
 - Screenshots and frames stayed on this Mac (scratchpad); none are in the repo
 - [ ] Tournament suggestions (unit-tested; no second game with a tournament in this store yet)
 
+## Label on Share — 2026-11-02, iPhone 17 Simulator
+- [x] Share on a labelled game's 6 s clip: progress sheet ("Making video with label…", "Adding label, takes longer", Cancel)
+- [x] Share sheet opened with the labelled copy (12.8 MB); label visible at 1 s in that file
+- [x] Closing the share sheet removed the copy (`tmp/Exports` empty) and the progress sheet
+- Fast path (label Off / no label text) and Cancel: unit-tested
+
 ## Not yet verified
 
 - [ ] Real game **filmed on a phone camera** from the stands (landscape, with audio, 30/60 fps, rotation metadata) — the 2026-09-30 run used a screen recording

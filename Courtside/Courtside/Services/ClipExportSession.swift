@@ -40,7 +40,7 @@ final class ClipExportSession: Identifiable {
     }
 
     func plan(for format: ExportFormat) -> ExportPlan {
-        ExportPlan(source: source, format: format, frameSteps: label.map { [LabelStep(label: $0)] } ?? [])
+        ExportPlan(source: source, format: format, label: label)
     }
 
     /// True when Original has to be rendered to add the label (slower than saving the clip as it is).

@@ -48,7 +48,7 @@ composition path like Vertical. With the setting Off or no label text it keeps t
 under Original: "Adding label, takes longer" or "Fast, no label", and the progress title reads "…with label".
 
 ## Not changed
-- **Share** still hands over the clip file as it is, with no label.
+- **Share** still hands over the clip file as it is, with no label. *Superseded by [0020](0020-label-on-share.md): Share now carries the label too.*
 - Score, notes and the game name stay app-only.
 
 ## Verified

@@ -1,5 +1,21 @@
 import UIKit
 
+/// Hands a file to the share sheet and returns when the sheet closes. Injected so tests needn't show UI.
+@MainActor protocol FileSharing {
+    func share(_ url: URL) async
+}
+
+/// The real share sheet.
+struct SystemFileSharing: FileSharing {
+    nonisolated init() {}
+
+    func share(_ url: URL) async {
+        await withCheckedContinuation { continuation in
+            ShareService.share(url) { continuation.resume() }
+        }
+    }
+}
+
 /// Presents the system share sheet for a file, from whatever screen is on top.
 @MainActor
 enum ShareService {
