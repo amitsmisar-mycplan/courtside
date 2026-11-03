@@ -64,7 +64,8 @@ Run with:
 ```
 TEST_RUNNER_COURTSIDE_CORPUS_DIR="<folder>" TEST_RUNNER_COURTSIDE_MARKS_PER_VIDEO=6 \
 TEST_RUNNER_COURTSIDE_TRIMMED_CLIPS_PER_VIDEO=1 TEST_RUNNER_COURTSIDE_CORPUS_REPORT=<out.json> \
-xcodebuild ... test -only-testing:CourtsideTests/CorpusStressTests
+xcodebuild -project Courtside/Courtside.xcodeproj -scheme Courtside -destination 'platform=iOS Simulator,name=Courtside Tests' \
+  test -only-testing:CourtsideTests/CorpusStressTests
 scripts/corpus-report.py <out.json>
 ```
 

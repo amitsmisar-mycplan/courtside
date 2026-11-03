@@ -20,10 +20,15 @@ non-trivial change.
 ## Build and test
 
 ```
-xcodebuild -project Courtside/Courtside.xcodeproj -scheme Courtside -destination 'platform=iOS Simulator,name=iPhone 17' test
+xcodebuild -project Courtside/Courtside.xcodeproj -scheme Courtside -destination 'platform=iOS Simulator,name=Courtside Tests' test
 ```
 
 All tests must pass and the build must have zero warnings before committing.
+
+Automated builds and tests use the 'Courtside Tests' Simulator, never 'iPhone 17'. 'iPhone 17' is the founder's
+manual-testing device: don't build to it, install on it, or run tests on it. 'Courtside Tests' is an iPhone 17 Pro
+(iOS 27); if it's missing, create it with
+`xcrun simctl create "Courtside Tests" com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro com.apple.CoreSimulator.SimRuntime.iOS-27-0`.
 
 ## Hard rules
 
@@ -53,7 +58,7 @@ All tests must pass and the build must have zero warnings before committing.
 ## Working style
 
 - Read files before changing them; match the surrounding code's style and comment density.
-- Verify behavior in the Simulator for UI changes, not just tests.
+- Verify behavior in the Simulator for UI changes, not just tests (in 'Courtside Tests', not 'iPhone 17').
 - Update `docs/status/progress.md` and `docs/testing/` when a step or verification changes.
 - Work on a branch; `main` changes only with the founder's go-ahead.
 

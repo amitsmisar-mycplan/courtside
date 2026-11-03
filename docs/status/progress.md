@@ -60,6 +60,9 @@ Original keeps its instant save when there's no label ([0019](../decisions/0019-
 progress and Cancel, temp file removed when the sheet closes); without a label it shares the clip instantly as before
 ([0020](../decisions/0020-label-on-share.md)). Built on `feature/label-on-share`.
 
+**Test Simulator** — automated builds and tests now run on a dedicated "Courtside Tests" Simulator (iPhone 17 Pro,
+iOS 27), never "iPhone 17", which is kept for manual testing. Command updated in CLAUDE.md, README and docs/testing.
+
 **Faster label export** — labelled Save to Photos, Vertical and Share are capped at 1080p by default (HEVC 1080p preset):
 a 13 s 4K clip takes 65 s instead of 178 s on the Simulator. "Labelled clip quality" in Settings keeps Full quality as
 an option. Labelled copies are cached while the app runs, so the same clip again is instant. Elapsed time in the
