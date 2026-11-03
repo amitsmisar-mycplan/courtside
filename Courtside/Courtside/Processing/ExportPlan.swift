@@ -64,20 +64,42 @@ extension ExportFrameStep {
 /// 2. **Timeline** — reserved for steps that change length, such as an end card (feature 7). None yet.
 /// 3. **Layout** — the output frame: as-is, or vertical with a blurred background.
 /// 4. **Frame steps** — drawn over each laid-out frame: the game label (decision 0019), later the watermark.
-/// 5. **Export** — `ClipExtractor`, HEVC Highest Quality, never passthrough.
+/// 5. **Export** — `ClipExtractor`, HEVC Highest Quality, never passthrough; labelled exports at
+///    "1080p (faster)" use the HEVC 1080p preset on a canvas capped at 1920 (decision 0021).
 struct ExportPlan {
     var source: URL
     var format: ExportFormat
     var frameSteps: [ExportFrameStep] = []
+    /// Longest side of the output in pixels, or nil for the source's own size (Vertical is always 1080×1920).
+    var maxLongSide: CGFloat? = nil
 
     /// True when the output would be the source file unchanged, so it can be saved without re-encoding.
     var isUnchangedSource: Bool { format == .original && frameSteps.isEmpty }
+
+    /// The 1080p cap: 1920 on the long side.
+    static let cappedLongSide: CGFloat = 1920
+
+    /// `size` scaled down to fit `maxLongSide` (never up), in even pixels as encoders want.
+    static func cappedSize(_ size: CGSize, maxLongSide: CGFloat?) -> CGSize {
+        guard let maxLongSide, size.width > 0, size.height > 0 else { return size }
+        let scale = min(1, maxLongSide / max(size.width, size.height))
+        guard scale < 1 else { return size }
+        func even(_ value: CGFloat) -> CGFloat { max(2, (value * scale / 2).rounded() * 2) }
+        return CGSize(width: even(size.width), height: even(size.height))
+    }
 }
 
 extension ExportPlan {
-    /// A clip's plan as Save to Photos and Share build it: the game label as a frame step when one applies.
-    init(source: URL, format: ExportFormat, label: LabelStep.LabelText?) {
-        self.init(source: source, format: format, frameSteps: label.map { [LabelStep(label: $0)] } ?? [])
+    /// A clip's plan as Save to Photos and Share build it: the game label as a frame step when one
+    /// applies, capped at 1080p when it does and the quality setting says so. Without a label nothing
+    /// changes: the fast path and unlabelled Vertical keep today's quality.
+    init(source: URL, format: ExportFormat, label: LabelStep.LabelText?, quality: LabelledExportQuality = .full) {
+        self.init(
+            source: source,
+            format: format,
+            frameSteps: label.map { [LabelStep(label: $0)] } ?? [],
+            maxLongSide: label != nil && quality == .hd1080 ? Self.cappedLongSide : nil
+        )
     }
 }
 

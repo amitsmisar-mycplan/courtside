@@ -54,7 +54,7 @@ private final class FakeSharer: FileSharing {
 }
 
 /// Share carries the game label like Save to Photos, keeps its instant path without one, and
-/// leaves no files behind (decision 0020).
+/// leaves no files behind except the cached labelled copy (decisions 0020, 0021).
 @MainActor
 final class ClipShareSessionTests: XCTestCase {
     private var source: URL!
@@ -62,12 +62,14 @@ final class ClipShareSessionTests: XCTestCase {
 
     override func setUp() async throws {
         StorageManager.prepareDirectories()
+        LabelledExportCache.shared.removeAll()
         source = FileManager.default.temporaryDirectory.appendingPathComponent("clip-\(UUID().uuidString).mov")
         // Mid-gray 1280×720, so the label box is easy to find.
         try await TestMedia.makeVideo(at: source, seconds: 4, fps: 30, size: CGSize(width: 1280, height: 720), gray: 128, withTone: true)
     }
 
     override func tearDown() async throws {
+        LabelledExportCache.shared.removeAll()
         try? FileManager.default.removeItem(at: source)
     }
 
@@ -80,7 +82,7 @@ final class ClipShareSessionTests: XCTestCase {
         Game(label: "", recordedAt: .now, videoFilename: "x.mov", durationSeconds: 60, source: .imported, videoFileSize: 1)
     }
 
-    func testShareWithLabelSharesALabelledCopyThenRemovesIt() async throws {
+    func testShareWithLabelSharesALabelledCopyAndKeepsItForNextTime() async throws {
         let sharer = FakeSharer()
         sharer.plain = source
         let session = ClipShareSession(clipID: UUID(), source: source, label: label, sharer: sharer)
@@ -96,7 +98,9 @@ final class ClipShareSessionTests: XCTestCase {
         XCTAssertEqual(shared.deletingLastPathComponent().standardizedFileURL, StorageManager.exportsDirectory.standardizedFileURL)
         XCTAssertEqual(sharer.existedWhenShared, [true])
         XCTAssertGreaterThan(try XCTUnwrap(sharer.darkening), 0.08, "the shared file carries the label")
-        XCTAssertFalse(FileManager.default.fileExists(atPath: shared.path), "removed after the share sheet closed")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: shared.path), "cached after the share sheet closed (0021)")
+        XCTAssertEqual(exportsFor(session.clipID), [shared.lastPathComponent], "only the cached copy, no partial")
+        LabelledExportCache.shared.removeAll()
         XCTAssertTrue(exportsFor(session.clipID).isEmpty)
         XCTAssertTrue(FileManager.default.fileExists(atPath: source.path), "the clip itself is never removed")
     }

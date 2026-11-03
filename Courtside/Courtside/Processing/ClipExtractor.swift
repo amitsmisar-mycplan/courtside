@@ -297,15 +297,20 @@ final class ClipExtractor {
         }
     }
 
-    /// Renders a clip for posting (vertical layout, later watermark and end card) to `destination`.
-    /// Same preset as every other export; cancelling removes the partial file.
+    /// Renders a clip for posting (vertical layout, label, later watermark and end card) to `destination`.
+    /// Same preset as every other export, except a plan capped at 1080p, which uses the HEVC 1080p
+    /// preset (labelled exports only, decision 0021). Cancelling removes the partial file.
     nonisolated static func exportForSharing(
         _ plan: ExportPlan,
         to destination: URL,
         progress: @escaping @MainActor (Double) -> Void
     ) async throws {
         let output = try await ExportComposer.build(plan)
-        try await run(asset: output.asset, timeRange: nil, videoComposition: output.videoComposition, to: destination, progress: progress)
+        let preset = plan.maxLongSide != nil ? AVAssetExportPresetHEVC1920x1080 : AVAssetExportPresetHEVCHighestQuality
+        try await run(
+            asset: output.asset, timeRange: nil, videoComposition: output.videoComposition,
+            to: destination, preset: preset, progress: progress
+        )
     }
 
     private nonisolated static func run(

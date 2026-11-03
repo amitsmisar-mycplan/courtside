@@ -6,6 +6,7 @@ struct SettingsView: View {
     @AppStorage(ClipSettings.postRollKey) private var postRoll = ClipWindow.defaultPostRoll
     @AppStorage(LabelSettings.myTeamKey) private var myTeam = ""
     @AppStorage(LabelSettings.exportLabelKey) private var exportLabel = ExportLabelMode.openAndClose
+    @AppStorage(LabelSettings.labelledQualityKey) private var labelledQuality = LabelledExportQuality.hd1080
 
     var body: some View {
         NavigationStack {
@@ -30,10 +31,16 @@ struct SettingsView: View {
                             Text(mode.title).tag(mode)
                         }
                     }
+                    Picker("Labelled clip quality", selection: $labelledQuality) {
+                        ForEach(LabelledExportQuality.allCases) { quality in
+                            Text(quality.title).tag(quality)
+                        }
+                    }
+                    .disabled(exportLabel == .off)
                 } header: {
                     Text("Game labels")
                 } footer: {
-                    Text("New games start with your team; change it on any game. Saved clips show the team, opponent, tournament and date for a few seconds at the start and end. Never the score.")
+                    Text("New games start with your team; change it on any game. Saved and shared clips show the team, opponent, tournament and date for a few seconds at the start and end. Never the score. Adding a label re-makes the video: 1080p is several times faster than full quality for 4K clips.")
                 }
                 Section {
                     Button("Restore Defaults") {

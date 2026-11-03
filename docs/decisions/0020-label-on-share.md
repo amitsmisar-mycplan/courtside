@@ -1,6 +1,7 @@
 # 0020 — Share carries the game label
 
-**Status:** Accepted · 2026-11-02 (founder's "label on Share" spec). Extends [0019](0019-game-labels.md), whose
+**Status:** Accepted · 2026-11-02 (founder's "label on Share" spec). The temporary-file rule below is superseded by
+[0021](0021-faster-label-export.md): labelled copies are now cached while the app runs. Extends [0019](0019-game-labels.md), whose
 "Share still hands over the clip file as it is" no longer holds, and [0016](0016-export-to-photos.md).
 
 ## Decision

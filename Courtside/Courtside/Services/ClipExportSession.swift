@@ -28,19 +28,35 @@ final class ClipExportSession: Identifiable {
     private(set) var sourceSize: CGSize?
     /// The game label to burn in, or nil when the setting is Off or the game has no label text.
     let label: LabelStep.LabelText?
+    /// Resolution of labelled exports (decision 0021); no effect without a label.
+    let quality: LabelledExportQuality
+    /// When the current render started, for the elapsed time on screen.
+    private(set) var renderStartedAt: Date?
 
     @ObservationIgnored private let photos: PhotoLibrarySaving
     @ObservationIgnored private var task: Task<Void, Never>?
 
-    init(clipID: UUID, source: URL, label: LabelStep.LabelText? = nil, photos: PhotoLibrarySaving = PhotoLibraryService()) {
+    init(
+        clipID: UUID,
+        source: URL,
+        label: LabelStep.LabelText? = nil,
+        quality: LabelledExportQuality = LabelSettings.labelledQuality,
+        photos: PhotoLibrarySaving = PhotoLibraryService()
+    ) {
         self.clipID = clipID
         self.source = source
         self.label = label
+        self.quality = quality
         self.photos = photos
     }
 
     func plan(for format: ExportFormat) -> ExportPlan {
-        ExportPlan(source: source, format: format, label: label)
+        ExportPlan(source: source, format: format, label: label, quality: quality)
+    }
+
+    /// The labelled-copy cache key for `format`, or nil without a label (nothing is cached then).
+    private func cacheKey(for format: ExportFormat) -> LabelledExportCache.Key? {
+        label.map { LabelledExportCache.Key(clipID: clipID, source: .init(source), format: format, label: $0, quality: quality) }
     }
 
     /// True when Original has to be rendered to add the label (slower than saving the clip as it is).
@@ -87,22 +103,38 @@ final class ClipExportSession: Identifiable {
             return
         }
 
+        let key = cacheKey(for: format)
+        if let key, let cached = LabelledExportCache.shared.file(for: key) {
+            // Same clip, label and quality as last time: the copy is already made.
+            await save(cached, format: format)
+            return
+        }
+
         phase = .exporting
+        renderStartedAt = .now
         let destination = StorageManager.makeExportURL(clipID: clipID, format: format)
-        defer { StorageManager.removeExport(at: destination) }
         do {
             try await ClipExtractor.exportForSharing(plan, to: destination) { [weak self] value in
                 self?.progress = value
             }
         } catch is CancellationError {
+            StorageManager.removeExport(at: destination)
             phase = .choosing
             return
         } catch {
+            StorageManager.removeExport(at: destination)
             Self.log.error("Export failed: \(error.localizedDescription, privacy: .public)")
             phase = .failed(error.localizedDescription)
             return
         }
-        await save(destination, format: format)
+        if let key {
+            // Kept for the next save or share of this clip; launch cleanup removes it otherwise.
+            LabelledExportCache.shared.store(destination, for: key)
+            await save(destination, format: format)
+        } else {
+            await save(destination, format: format)
+            StorageManager.removeExport(at: destination)
+        }
     }
 
     private func save(_ url: URL, format: ExportFormat) async {

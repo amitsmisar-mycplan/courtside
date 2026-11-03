@@ -68,6 +68,9 @@ struct ExportSheet: View {
                 Text("Making \(session.format == .vertical ? "vertical video" : "video")\(session.addsLabel ? " with label" : "")…").font(.headline)
                 ProgressView(value: session.progress)
                 Text("\(Int(session.progress * 100))%").monospacedDigit().foregroundStyle(.secondary)
+                if let start = session.renderStartedAt {
+                    Text("Elapsed \(Text(start, style: .timer))").font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                }
             }
             .frame(maxHeight: .infinity)
         case .saving:

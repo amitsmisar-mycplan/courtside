@@ -224,3 +224,32 @@ Real footage: the 4K `20261031_132814` recording (the leftover "Recovered" game)
 - [ ] Slow motion on 60 fps phone footage; whether real iPhones need the H.264 fallback
 - [ ] Save to Photos on a device: vertical export time for a 13 s clip, plays correctly in Photos, audio in sync by ear
 - [ ] Full-screen slow-mo preview on a device: turning to landscape while held upright, and speed change with 60 fps footage
+
+## Faster label export — 2026-11-02, "Courtside Tests" Simulator (iPhone 17 Pro, iOS 27)
+
+`LabelExportTimingTests` (skipped unless `TEST_RUNNER_COURTSIDE_TIMING_SOURCES` lists videos) cuts a 13 s clip from the
+middle of each source through `ClipExtractor` into a temporary folder, times the exports, and removes everything it
+made. Sources (read only): `20261004_105657.mp4` (4K HEVC) and `DJI_20261004_103320_13_null_video.mp4` (1080p).
+One run each; seconds.
+
+| What | 4K before | 4K after | 1080p before | 1080p after |
+|---|---|---|---|---|
+| No label, no frames drawn (frames copied) | 0.2 | 0.1 | 0.1 | 0.1 |
+| Every frame re-made, nothing drawn, full size | — | 184.6 | — | 68.5 |
+| Every frame re-made, nothing drawn, 1080p preset | — | 66.8 | — | 67.0 |
+| Save to Photos, labelled (default) | 177.7 | **64.8** | 67.7 | 66.4 |
+| Share, labelled (default) | 179.1 | **64.7** | 66.0 | 66.3 |
+| Save to Photos, labelled, Full quality | — | 175.2 | — | 66.1 |
+| Share, labelled, Full quality | — | 176.2 | — | 66.7 |
+| Share right after saving (cached) | — | **0.0** | — | **0.0** |
+
+Output: 4K labelled at 1080p is 1920×1080, 19.3 MB (Full quality 3840×2160, 25.9 MB). The time is the decode and
+encode of every frame that drawing forces, not the label: drawing nothing through the same path costs the same.
+
+Unit tests (`FasterLabelExportTests`): 1080p cap sizes (landscape, portrait upright, Vertical, never scaled up), label
+present at 1080p, Full quality keeps size, cache reuse and invalidation (quality, label text, rewritten source), clip and
+game deletion and launch cleanup remove cached copies, at most 4 kept, unlabelled Vertical still removed.
+
+**Not yet checked in the Simulator UI:** the Settings picker and the elapsed time in the progress sheets (Simulator
+access to "Courtside Tests" wasn't granted during this run).
+

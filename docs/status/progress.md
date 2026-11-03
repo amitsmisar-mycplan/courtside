@@ -63,6 +63,12 @@ progress and Cancel, temp file removed when the sheet closes); without a label i
 **Test Simulator** — automated builds and tests now run on a dedicated "Courtside Tests" Simulator (iPhone 17 Pro,
 iOS 27), never "iPhone 17", which is kept for manual testing. Command updated in CLAUDE.md, README and docs/testing.
 
+**Faster label export** — labelled Save to Photos, Vertical and Share are capped at 1080p by default (HEVC 1080p preset):
+a 13 s 4K clip takes 65 s instead of 178 s on the Simulator. "Labelled clip quality" in Settings keeps Full quality as
+an option. Labelled copies are cached while the app runs, so the same clip again is instant. Elapsed time in the
+progress sheets ([0021](../decisions/0021-faster-label-export.md)). Built on `feature/faster-label-export`.
+UI not yet checked in the Simulator.
+
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).
