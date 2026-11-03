@@ -42,7 +42,8 @@ manual-testing device: don't build to it, install on it, or run tests on it. 'Co
 - **No logic branches on `Game.source`** past game creation. If you need to, stop and raise it.
 - **Copy, never reference,** picked videos. Balance security-scoped access.
 - Clip export: `AVAssetExportPresetHEVCHighestQuality`, never passthrough; serial, never parallel. Only labelled
-  exports may use the HEVC 1080p preset (decision 0021).
+  exports (decision 0021) and clips and trims at "Clip quality: 1080p" from footage over 1920 on the long side
+  (decision 0023) may use the HEVC 1080p preset.
 - **Losing footage is the one unforgivable bug.** Never delete a complete game video that has no `Game` record — orphans are for step 7 recovery.
 - Non-goals (computer vision, stats, cloud/accounts, reels, rosters, Android/iPad/Watch) are out of scope.
 

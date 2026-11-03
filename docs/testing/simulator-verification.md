@@ -279,3 +279,28 @@ across parts, per-part expiry, prompt Delete, missing-file check, recovery, clip
 Leftovers on this device from cut-off test runs earlier today: three "Recovered" 1:00 games and three small clip files
 from test videos. They were left as they are.
 
+## Clip quality — 2026-11-03, "Courtside Tests" Simulator (iPhone 17 Pro, iOS 27)
+
+`ClipQualityTimingTests` (skipped unless `TEST_RUNNER_COURTSIDE_TIMING_SOURCES` lists videos) imports each source as a
+game, taps once in the middle, makes the 13 s clip through `ClipExtractor`, trims it out by 2 s on each side, at each
+setting, and removes everything it made. Sources (read only), the same as for 0021: `20261004_105657.mp4` (4K HEVC) and
+`DJI_20261004_103320_13_null_video.mp4` (1080p). One run each; seconds.
+
+| What | 4K before | 4K Full quality | 4K 1080p | 1080p before | 1080p Full quality | 1080p 1080p |
+|---|---|---|---|---|---|---|
+| Make 13 s clip | 307.9 | 187.8 | **67.8** | 131.3 | 78.0 | 80.9 |
+| Trim to 17 s | 327.7 | 234.5 | **101.4** | 128.4 | 101.9 | 104.5 |
+
+"Before" is the old code, measured first while the Mac was more loaded; "Full quality" is the same behavior measured in
+the same run as "1080p", so those two columns are the fair comparison. Clip files: 4K at 1080p 1920×1080, 19.3 MB (Full
+quality 3840×2160, 25.9 MB); 1080p sources 1920×1080 either way.
+
+Unit tests (`ClipQualityTests`, 10): 4K landscape gives a 1920×1080 clip of the right length; 4K portrait stored
+rotated and stored upright both give 1080×1920; 1920×1080, 1280×720 and 320×180 sources keep their size; Full quality
+keeps 3840×2160; new clips through `ClipExtractor` follow the setting; trim follows the setting both ways; an existing
+clip's file, size and window are untouched when the setting changes and clips are made again; a labelled 1080p export of
+a 1080p clip keeps a 1920×1080 canvas; the default is 1080p.
+
+Settings UI (app built and installed on "Courtside Tests"): "Clip quality" sits in its own section under Clip length, shows
+"1080p (faster)" by default, and its menu offers "1080p (faster)" (checked) and "Full quality", with the footer "For new
+clips and trims. 1080p is several times faster to make from 4K game videos. Clips you already have stay as they are."

@@ -26,3 +26,4 @@ One file per decision that deviates from or extends the spec. Add new ones with 
 | [0020](0020-label-on-share.md) | Share carries the game label (labelled Original rendered first); fast path without one | Accepted |
 | [0021](0021-faster-label-export.md) | Labelled exports at 1080p by default (HEVC 1080p preset), cached while the app runs | Accepted |
 | [0022](0022-multi-part-games.md) | Games with more than one video (parts): model, migration, per-part retention | Accepted |
+| [0023](0023-clip-quality.md) | Clips and trims at 1080p by default ("Clip quality"); Full quality keeps the old behavior | Accepted |

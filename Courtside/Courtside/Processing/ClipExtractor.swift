@@ -136,6 +136,8 @@ final class ClipExtractor {
 
         let preRoll = ClipSettings.preRoll
         let postRoll = ClipSettings.postRoll
+        // Read once, so one batch never mixes qualities.
+        let quality = ClipSettings.quality
 
         for mark in marks {
             if Task.isCancelled { break }
@@ -182,7 +184,7 @@ final class ClipExtractor {
                 } else {
                     currentPartial = StorageManager.partialURL(for: destination)
                     defer { currentPartial = nil }
-                    try await Self.export(source: source, window: window, to: destination) { [weak self] value in
+                    try await Self.export(source: source, window: window, to: destination, quality: quality) { [weak self] value in
                         self?.currentProgress = value
                     }
                 }
@@ -224,9 +226,11 @@ final class ClipExtractor {
     /// Re-cuts `clip` from its part's video to `window`, replacing its file in place (same
     /// filename; the new file is written aside first, so a failed export keeps the old clip).
     /// The window must lie inside that part: a clip never crosses into another (decision 0022).
+    /// Encoded at the current "Clip quality" setting (decision 0023).
     static func trim(
         _ clip: Clip,
         to window: ClipWindow,
+        quality: ClipQuality = ClipSettings.quality,
         context: ModelContext,
         progress: @escaping @MainActor (Double) -> Void
     ) async throws {
@@ -239,7 +243,7 @@ final class ClipExtractor {
         // Fixed before the edges move, so the tap stays on the same game moment.
         let mark = clip.markTime
         let destination = StorageManager.clipURL(for: clip)
-        try await export(source: StorageManager.videoURL(for: part), window: window, to: destination, progress: progress)
+        try await export(source: StorageManager.videoURL(for: part), window: window, to: destination, quality: quality, progress: progress)
         StorageManager.removeThumbnail(forClipID: clip.id)
         // The slow-motion render was cut from the old clip, so it's stale now.
         StorageManager.removeSlowMoFile(of: clip)
@@ -275,18 +279,31 @@ final class ClipExtractor {
     }
 
     /// Frame-accurate re-encode of `window`. Not passthrough: passthrough only cuts on
-    /// keyframes, which lands clips a second or two away from the tap.
+    /// keyframes, which lands clips a second or two away from the tap. At `.hd1080`, a source
+    /// larger than 1920 on the long side uses the HEVC 1080p preset (decision 0023); anything
+    /// smaller, and `.full`, keeps HEVC Highest Quality at the source's own size.
     nonisolated static func export(
         source: URL,
         window: ClipWindow,
         to destination: URL,
+        quality: ClipQuality = .full,
         progress: @escaping @MainActor (Double) -> Void
     ) async throws {
         let range = CMTimeRange(
             start: CMTime(seconds: window.start, preferredTimescale: 600),
             end: CMTime(seconds: window.end, preferredTimescale: 600)
         )
-        try await run(asset: AVURLAsset(url: source), timeRange: range, to: destination, progress: progress)
+        let asset = AVURLAsset(url: source)
+        let scalesDown = quality == .hd1080 ? (try? await isLargerThan1080p(asset)) == true : false
+        let preset = scalesDown ? AVAssetExportPresetHEVC1920x1080 : AVAssetExportPresetHEVCHighestQuality
+        try await run(asset: asset, timeRange: range, to: destination, preset: preset, progress: progress)
+    }
+
+    /// True when the video's long side is over 1920: only then does 1080p scale it (never up).
+    private nonisolated static func isLargerThan1080p(_ asset: AVAsset) async throws -> Bool {
+        guard let track = try await asset.loadTracks(withMediaType: .video).first else { return false }
+        let size = try await track.load(.naturalSize)
+        return max(abs(size.width), abs(size.height)) > ExportPlan.cappedLongSide
     }
 
     /// Renders the slow-motion composition of a clip. Re-encoded, never passthrough.
