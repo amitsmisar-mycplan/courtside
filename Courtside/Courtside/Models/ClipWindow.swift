@@ -72,9 +72,33 @@ extension ClipWindow {
 }
 
 /// User-adjustable pre/post roll, stored in UserDefaults and clamped to the allowed ranges.
+/// How clips and trims are encoded (decision 0023). Clips are re-encoded to land on the tap, and at
+/// 4K that's slow; "1080p (faster)" caps them at 1920 on the long side. Existing clips are never remade.
+enum ClipQuality: String, CaseIterable, Identifiable, Hashable, Sendable {
+    /// At most 1920 on the long side, HEVC 1080p preset. A source that small or smaller keeps its size.
+    case hd1080
+    /// The source's own resolution, HEVC Highest Quality: the behavior before decision 0023.
+    case full
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .hd1080: "1080p (faster)"
+        case .full: "Full quality"
+        }
+    }
+}
+
 enum ClipSettings {
     static let preRollKey = "clipPreRollSeconds"
     static let postRollKey = "clipPostRollSeconds"
+    static let qualityKey = "clipQuality"
+
+    /// Used for new clips and trims. Defaults to 1080p.
+    static var quality: ClipQuality {
+        UserDefaults.standard.string(forKey: qualityKey).flatMap(ClipQuality.init(rawValue:)) ?? .hd1080
+    }
 
     static var preRoll: Double {
         value(for: preRollKey, default: ClipWindow.defaultPreRoll, range: ClipWindow.preRollRange)

@@ -76,6 +76,11 @@ first). Also fixes a crash when background time ran out just as a clip's export 
 ([0022](../decisions/0022-multi-part-games.md)). Built on `feature/multi-part-games`; Simulator-verified on "Courtside
 Tests" and run on two real November 1 videos as one game.
 
+**Feature: clip quality** — new "Clip quality" setting: "1080p (faster)" (default) makes clips and trims from 4K game
+videos at 1920 on the long side with the HEVC 1080p preset; smaller videos keep their size, and "Full quality" is the old
+behavior. Existing clips aren't remade ([0023](../decisions/0023-clip-quality.md)). Built on `feature/clip-quality`;
+timed on real footage in the "Courtside Tests" Simulator.
+
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).

@@ -4,6 +4,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage(ClipSettings.preRollKey) private var preRoll = ClipWindow.defaultPreRoll
     @AppStorage(ClipSettings.postRollKey) private var postRoll = ClipWindow.defaultPostRoll
+    @AppStorage(ClipSettings.qualityKey) private var clipQuality = ClipQuality.hd1080
     @AppStorage(LabelSettings.myTeamKey) private var myTeam = ""
     @AppStorage(LabelSettings.exportLabelKey) private var exportLabel = ExportLabelMode.openAndClose
     @AppStorage(LabelSettings.labelledQualityKey) private var labelledQuality = LabelledExportQuality.hd1080
@@ -22,6 +23,15 @@ struct SettingsView: View {
                     Text("Clip length")
                 } footer: {
                     Text("You tap after the play happens, so most of each clip comes from before the tap. Changes apply to clips made from now on.")
+                }
+                Section {
+                    Picker("Clip quality", selection: $clipQuality) {
+                        ForEach(ClipQuality.allCases) { quality in
+                            Text(quality.title).tag(quality)
+                        }
+                    }
+                } footer: {
+                    Text("For new clips and trims. 1080p is several times faster to make from 4K game videos. Clips you already have stay as they are.")
                 }
                 Section {
                     TextField("My team", text: $myTeam)
