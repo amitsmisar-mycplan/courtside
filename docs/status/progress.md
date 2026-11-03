@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-11-02_
+_Last updated: 2026-11-03_
 
 | Step | What | Status |
 |---|---|---|
@@ -68,6 +68,13 @@ a 13 s 4K clip takes 65 s instead of 178 s on the Simulator. "Labelled clip qual
 an option. Labelled copies are cached while the app runs, so the same clip again is instant. Elapsed time in the
 progress sheets ([0021](../decisions/0021-faster-label-export.md)). Built on `feature/faster-label-export`.
 UI not yet checked in the Simulator.
+
+**Feature: games with more than one video (parts)** — a game holds its videos in order ("Part 1", "Part 2"); "Add Video"
+on the game page imports another through the same import path. Marking, clips, trim and retention work per part, and
+a clip never crosses into another part. Existing games migrate to one part with everything intact (store backed up
+first). Also fixes a crash when background time ran out just as a clip's export started
+([0022](../decisions/0022-multi-part-games.md)). Built on `feature/multi-part-games`; Simulator-verified on "Courtside
+Tests" and run on two real November 1 videos as one game.
 
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 

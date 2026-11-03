@@ -72,7 +72,7 @@ final class RecordingSessionTests: XCTestCase {
         XCTAssertEqual(session.phase, .recording)
         let game = try! XCTUnwrap(session.game)
         XCTAssertEqual(game.source, .recorded)
-        XCTAssertEqual(game.videoFilename, service.url.lastPathComponent)
+        XCTAssertEqual(game.firstPart.videoFilename, service.url.lastPathComponent)
         XCTAssertEqual(try container.mainContext.fetchCount(FetchDescriptor<Game>()), 1, "saved before any footage is at risk")
         // No details are asked for before recording; they're added afterwards.
         XCTAssertEqual(game.displayTitle, "Untitled game")

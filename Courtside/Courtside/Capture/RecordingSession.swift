@@ -125,7 +125,9 @@ final class RecordingSession {
             // Recording had already ended on its own; save what's there.
             Self.log.error("Stop failed: \(error.localizedDescription); saving what was recorded")
             if let game {
-                await finalize(url: StorageManager.gameVideoURL(for: game), reportedDuration: elapsed)
+                if let part = game.orderedParts.first {
+                    await finalize(url: StorageManager.videoURL(for: part), reportedDuration: elapsed)
+                }
             }
         }
     }
@@ -164,8 +166,12 @@ final class RecordingSession {
         let asset = AVURLAsset(url: url)
         let loaded = (try? await asset.load(.duration).seconds) ?? 0
         let duration = loaded.isFinite && loaded > 0 ? loaded : max(reportedDuration, elapsed)
-        game.durationSeconds = duration
-        game.videoFileSize = StorageManager.fileSize(at: url)
+        let size = StorageManager.fileSize(at: url)
+        // A recording is always Part 1 (recording into an existing game isn't built, decision 0022).
+        game.orderedParts.first?.durationSeconds = duration
+        game.orderedParts.first?.videoFileSize = size
+        game.legacyDurationSeconds = duration
+        game.legacyVideoFileSize = size
         try? context.save()
         elapsed = duration
         undo.clear()
@@ -188,6 +194,7 @@ final class RecordingSession {
         let mark = Mark(offsetSeconds: service.mark())
         context.insert(mark)
         mark.game = game
+        mark.part = game.orderedParts.first
         try? context.save()
         markCount += 1
 

@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftData
 import SwiftUI
 
@@ -5,7 +6,13 @@ struct GameDetailView: View {
     @Bindable var game: Game
     @Environment(\.modelContext) private var modelContext
 
-    @State private var showMarking = false
+    /// The part being marked (decision 0022); Part 1 for a game with one video.
+    @State private var markingPart: GamePart?
+    @State private var showPhotosPicker = false
+    @State private var photosSelection: PhotosPickerItem?
+    @State private var showFileImporter = false
+    @State private var importRequest: ImportRequest?
+    @State private var pickerError: String?
     @State private var showProcessing = false
     @State private var isEditing = false
     @State private var confirmDeleteVideo = false
@@ -25,6 +32,9 @@ struct GameDetailView: View {
                 .padding(.horizontal, 2)
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+            }
+            if game.hasSeveralParts {
+                parts
             }
             clips
         }
@@ -60,17 +70,44 @@ struct GameDetailView: View {
         .navigationDestination(for: Clip.self) { clip in
             ClipPlayerView(clip: clip)
         }
-        .fullScreenCover(isPresented: $showMarking, onDismiss: {
-            if !game.pendingMarks.isEmpty { showProcessing = true }
-        }) {
-            PlaybackMarkingView(game: game, modelContext: modelContext)
+        .fullScreenCover(item: $markingPart, onDismiss: {
+            if !game.extractableMarks.isEmpty { showProcessing = true }
+        }) { part in
+            PlaybackMarkingView(game: game, part: part, modelContext: modelContext)
+        }
+        .photosPicker(
+            isPresented: $showPhotosPicker,
+            selection: $photosSelection,
+            matching: .videos,
+            preferredItemEncoding: .current
+        )
+        .onChange(of: photosSelection) { _, item in
+            guard let item else { return }
+            photosSelection = nil
+            importRequest = ImportRequest(source: .photos(item), addingTo: game)
+        }
+        .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.movie, .video]) { result in
+            switch result {
+            case .success(let url): importRequest = ImportRequest(source: .file(url), addingTo: game)
+            case .failure(let error): pickerError = error.localizedDescription
+            }
+        }
+        .sheet(item: $importRequest) { request in
+            ImportFlowView(request: request, modelContext: modelContext)
+        }
+        .alert("Couldn't open file", isPresented: Binding(get: { pickerError != nil }, set: { if !$0 { pickerError = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(pickerError ?? "")
         }
         .confirmationDialog(
             "Delete the full game video?",
             isPresented: $confirmDeleteVideo,
             titleVisibility: .visible
         ) {
-            Button("Delete Full Video (\(Format.bytes(game.videoFileSize)))", role: .destructive) {
+            Button(game.hasSeveralParts
+                   ? "Delete All Videos (\(Format.bytes(game.availableVideoBytes)))"
+                   : "Delete Full Video (\(Format.bytes(game.availableVideoBytes)))", role: .destructive) {
                 StorageManager.deleteGameVideo(game, in: modelContext)
             }
         } message: {
@@ -128,13 +165,23 @@ struct GameDetailView: View {
 
     @ViewBuilder
     private var videoStatus: some View {
-        if !game.isVideoAvailable {
+        if game.hasSeveralParts {
+            // Each part's own status is in the Parts list; only the game-wide Keep shows here.
+            if game.keepsVideo && game.isVideoAvailable {
+                HStack {
+                    Text("This game's videos (\(Format.bytes(game.availableVideoBytes))) are kept.")
+                    Button("Delete…", role: .destructive) { confirmDeleteVideo = true }
+                        .buttonStyle(.borderless)
+                        .font(.caption)
+                }
+            }
+        } else if !game.isVideoAvailable {
             Text("The full game video was deleted. Your clips are kept, but you can't add marks or adjust clip timing.")
         } else if let expiresAt = game.videoExpiresAt {
-            Text("Full game video (\(Format.bytes(game.videoFileSize))) is kept until \(expiresAt.formatted(date: .abbreviated, time: .omitted)).")
+            Text("Full game video (\(Format.bytes(game.availableVideoBytes))) is kept until \(expiresAt.formatted(date: .abbreviated, time: .omitted)).")
         } else if game.keepsVideo {
             HStack {
-                Text("Full game video (\(Format.bytes(game.videoFileSize))) is kept.")
+                Text("Full game video (\(Format.bytes(game.availableVideoBytes))) is kept.")
                 Button("Delete…", role: .destructive) { confirmDeleteVideo = true }
                     .buttonStyle(.borderless)
                     .font(.caption)
@@ -144,18 +191,21 @@ struct GameDetailView: View {
 
     private var actions: some View {
         VStack(spacing: 10) {
-            Button {
-                showMarking = true
-            } label: {
-                Label(game.marks.isEmpty ? "Watch and Mark Plays" : "Mark More Plays", systemImage: "hand.tap")
-                    .frame(maxWidth: .infinity)
+            // With several parts, the Parts list below is where marking starts (decision 0022).
+            if !game.hasSeveralParts {
+                Button {
+                    markingPart = game.orderedParts.first
+                } label: {
+                    Label(game.marks.isEmpty ? "Watch and Mark Plays" : "Mark More Plays", systemImage: "hand.tap")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(!game.isVideoAvailable)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(!game.isVideoAvailable)
 
-            let pending = game.pendingMarks.count
-            if pending > 0 && game.isVideoAvailable {
+            let pending = game.extractableMarks.count
+            if pending > 0 {
                 Button {
                     showProcessing = true
                 } label: {
@@ -165,6 +215,34 @@ struct GameDetailView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.large)
             }
+
+            Menu {
+                Button("Import from Photos", systemImage: "photo.on.rectangle") { showPhotosPicker = true }
+                Button("Import from Files", systemImage: "folder") { showFileImporter = true }
+            } label: {
+                Label("Add Video", systemImage: "plus.rectangle.on.rectangle")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+        }
+    }
+
+    /// One row per video, in the order added; tap one to mark it.
+    private var parts: some View {
+        Section {
+            ForEach(game.orderedParts) { part in
+                Button {
+                    markingPart = part
+                } label: {
+                    PartRow(part: part)
+                }
+                .disabled(!part.isVideoAvailable)
+            }
+        } header: {
+            Text("\(game.parts.count) Parts")
+        } footer: {
+            Text("Tap a part to watch it and mark plays.")
         }
     }
 
@@ -182,7 +260,7 @@ struct GameDetailView: View {
             Section {
                 ForEach(clips) { clip in
                     NavigationLink(value: clip) {
-                        ClipRow(clip: clip)
+                        ClipRow(clip: clip, showsPart: game.hasSeveralParts)
                     }
                     .tag(clip.id)
                     .swipeActions {
@@ -234,16 +312,51 @@ struct GameDetailView: View {
     }
 }
 
-/// A clip in the game's list: thumbnail, where it sits in the game, and its length.
+/// A part in the game's Parts list: its name, length and what happens to its video.
+private struct PartRow: View {
+    let part: GamePart
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(part.title) · \(Format.duration(part.durationSeconds))")
+                    .font(.headline.monospacedDigit())
+                    // Plain colours: inside a button the hierarchical styles take the accent tint.
+                    .foregroundStyle(part.isVideoAvailable ? Color.primary : Color.secondary)
+                Text(status)
+                    .font(.caption)
+                    .foregroundStyle(Color.secondary)
+            }
+            Spacer()
+            if part.isVideoAvailable {
+                Image(systemName: "hand.tap")
+                    .foregroundStyle(Color.accentColor)
+            }
+        }
+    }
+
+    private var status: String {
+        let marks = part.marks.count == 1 ? "1 mark" : "\(part.marks.count) marks"
+        if !part.isVideoAvailable { return "\(marks) · Video deleted" }
+        if let expiresAt = part.videoExpiresAt {
+            return "\(marks) · Video kept until \(expiresAt.formatted(date: .abbreviated, time: .omitted))"
+        }
+        return "\(marks) · \(Format.bytes(part.videoFileSize))"
+    }
+}
+
+/// A clip in the game's list: thumbnail, where it sits in the game, and its length. The part is
+/// named only when the game has more than one.
 private struct ClipRow: View {
     let clip: Clip
+    var showsPart = false
 
     var body: some View {
         HStack(spacing: 12) {
             ClipThumbnailView(clip: clip)
                 .frame(width: 112)
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(Format.duration(clip.startSeconds)) – \(Format.duration(clip.endSeconds))")
+                Text(times)
                     .font(.headline.monospacedDigit())
                 HStack(spacing: 8) {
                     Text("\(Int(clip.window.duration.rounded())) sec")
@@ -256,6 +369,12 @@ private struct ClipRow: View {
             }
         }
         .padding(.vertical, 2)
+    }
+
+    private var times: String {
+        let range = "\(Format.duration(clip.startSeconds)) – \(Format.duration(clip.endSeconds))"
+        guard showsPart, let part = clip.resolvedPart else { return range }
+        return "\(part.title) · \(range)"
     }
 }
 

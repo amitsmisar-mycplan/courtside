@@ -5,12 +5,12 @@ import SwiftData
     var id: UUID
     /// Relative filename only. Rebuild the URL through `StorageManager`.
     var filename: String
-    /// Window in the source game video.
+    /// Window in its part's video.
     var startSeconds: Double
     var endSeconds: Double
     var createdAt: Date
     var fileSize: Int64
-    /// Where the parent tapped, in game-video seconds. Nil for clips made before this was stored.
+    /// Where the parent tapped, in seconds of its part's video. Nil for clips made before this was stored.
     var markSeconds: Double?
     /// Slow-motion render. All nil = not rendered. Relative filename only.
     var slowMoFilename: String?
@@ -20,6 +20,8 @@ import SwiftData
     var slowMoEndSeconds: Double?
     var slowMoFileSize: Int64?
     var game: Game?
+    /// The video this clip was cut from (decision 0022). Use `resolvedPart`.
+    var part: GamePart?
 
     init(
         id: UUID = UUID(),
@@ -60,6 +62,9 @@ extension Clip {
     var secondsAfterMark: Double { endSeconds - markTime }
 
     var hasSlowMo: Bool { slowMoFilename != nil }
+
+    /// Its part, or Part 1 for a record not yet given one (before the parts migration ran).
+    var resolvedPart: GamePart? { part ?? game?.orderedParts.first }
 
     var slowMoURL: URL? { slowMoFilename.map(StorageManager.clipURL(filename:)) }
 

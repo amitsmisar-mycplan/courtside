@@ -33,7 +33,7 @@ final class RecordingRecoveryTests: XCTestCase {
         await StorageManager.recoverRecordings(in: container.mainContext)
 
         XCTAssertEqual(game.durationSeconds, 4, accuracy: 0.1)
-        XCTAssertGreaterThan(game.videoFileSize, 0)
+        XCTAssertGreaterThan(game.firstPart.videoFileSize, 0)
     }
 
     func testOrphanedVideoBecomesAGame() async throws {
@@ -42,7 +42,7 @@ final class RecordingRecoveryTests: XCTestCase {
 
         await StorageManager.recoverRecordings(in: container.mainContext)
 
-        let games = try container.mainContext.fetch(FetchDescriptor<Game>()).filter { $0.videoFilename == filename }
+        let games = try container.mainContext.fetch(FetchDescriptor<Game>()).filter { $0.firstPart.videoFilename == filename }
         XCTAssertEqual(games.count, 1)
         XCTAssertEqual(games.first?.durationSeconds ?? 0, 3, accuracy: 0.1)
         XCTAssertTrue(games.first?.label.hasPrefix("Recovered") == true)
@@ -57,7 +57,7 @@ final class RecordingRecoveryTests: XCTestCase {
 
         await StorageManager.recoverRecordings(in: container.mainContext)
 
-        let filenames = try container.mainContext.fetch(FetchDescriptor<Game>()).map(\.videoFilename)
+        let filenames = try container.mainContext.fetch(FetchDescriptor<Game>()).map(\.firstPart.videoFilename)
         XCTAssertFalse(filenames.contains(junk.lastPathComponent))
         XCTAssertFalse(filenames.contains(partialName))
         XCTAssertTrue(StorageManager.fileExists(at: junk), "never delete footage, even if unreadable")

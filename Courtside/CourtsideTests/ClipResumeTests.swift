@@ -94,7 +94,7 @@ final class ClipResumeTests: XCTestCase {
 
     func testBackgroundExpiryStopsCleanlyThenResumeMakesOnlyMissingClips() async throws {
         let game = try await makeGame()
-        let videoURL = StorageManager.gameVideoURL(for: game)
+        let videoURL = StorageManager.videoURL(for: game.firstPart)
         let videoSize = StorageManager.fileSize(at: videoURL)
         let time = FakeBackgroundTime()
         let extractor = ClipExtractor(backgroundTime: time, unfinished: unfinished)
@@ -157,7 +157,7 @@ final class ClipResumeTests: XCTestCase {
         // Either the export was caught mid-way (nothing made) or had just landed (one clip, kept).
         XCTAssertEqual(partials(of: game), [])
         XCTAssertEqual(game.clips.count, game.marks.filter(\.isExtracted).count)
-        XCTAssertTrue(StorageManager.fileExists(at: StorageManager.gameVideoURL(for: game)))
+        XCTAssertTrue(StorageManager.fileExists(at: StorageManager.videoURL(for: game.firstPart)))
     }
 
     func testFinishedFileWithoutRecordIsAdoptedNotRemade() async throws {
@@ -165,7 +165,7 @@ final class ClipResumeTests: XCTestCase {
         let game = try await makeGame(marks: [20])
         let mark = game.marks[0]
         let url = StorageManager.clipURL(filename: StorageManager.makeClipFilename(id: mark.id))
-        try await ClipExtractor.export(source: StorageManager.gameVideoURL(for: game), window: ClipWindow(start: 10, end: 23), to: url) { _ in }
+        try await ClipExtractor.export(source: StorageManager.videoURL(for: game.firstPart), window: ClipWindow(start: 10, end: 23), to: url) { _ in }
         let before = try identity(of: url)
 
         let extractor = ClipExtractor(backgroundTime: FakeBackgroundTime(), unfinished: unfinished)
@@ -242,7 +242,7 @@ final class ClipResumeTests: XCTestCase {
         let waiting = try await makeGame(marks: [20])
         let done = try await makeGame(marks: [])
         let videoGone = try await makeGame(marks: [20])
-        videoGone.isVideoAvailable = false
+        videoGone.firstPart.isVideoAvailable = false
         let deleted = UUID()
         for id in [waiting.id, done.id, videoGone.id, deleted] { unfinished.add(id) }
 

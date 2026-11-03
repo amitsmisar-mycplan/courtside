@@ -10,10 +10,14 @@ struct ImportRequest: Identifiable {
 
     let id = UUID()
     let source: Source
+    /// Add the video to this game as its next part, instead of making a new game (decision 0022).
+    var addingTo: Game? = nil
 }
 
 /// Copies the picked video with progress and creates the `Game`, then offers a quick, skippable
 /// opponent field. The game already exists by then; details never hold up the import.
+/// With `addingTo`, the same copy (progress, cancel, free-space check) adds a part to that game
+/// and closes.
 struct ImportFlowView: View {
     let request: ImportRequest
     let modelContext: ModelContext
@@ -77,7 +81,7 @@ struct ImportFlowView: View {
                 Section {
                     LabeledContent("Date", value: game.recordedAt.formatted(date: .abbreviated, time: .shortened))
                     LabeledContent("Length", value: Format.duration(game.durationSeconds))
-                    LabeledContent("Size", value: Format.bytes(game.videoFileSize))
+                    LabeledContent("Size", value: Format.bytes(game.availableVideoBytes))
                 }
             }
         case .failed(let message):
@@ -115,7 +119,7 @@ struct ImportFlowView: View {
 
     private var title: String {
         switch phase {
-        case .importing: "Importing"
+        case .importing: request.addingTo == nil ? "Importing" : "Adding Video"
         case .details: "Who Did They Play?"
         case .failed: "Import"
         }
@@ -123,6 +127,7 @@ struct ImportFlowView: View {
 
     private func startImport() {
         let source = request.source
+        let target = request.addingTo
         let context = modelContext
         importTask = Task {
             let report: @Sendable (Double) -> Void = { value in
@@ -136,9 +141,14 @@ struct ImportFlowView: View {
                 case .file(let url):
                     video = try await VideoImporter.importFromFile(at: url, progress: report)
                 }
+                if let target {
+                    try StorageManager.addPart(video, to: target, in: context)
+                    dismiss()
+                    return
+                }
                 let recordedAt = video.createdAt ?? .now
                 let game = Game(
-                    id: video.gameID,
+                    id: video.videoID,
                     label: "",
                     recordedAt: recordedAt,
                     videoFilename: video.filename,

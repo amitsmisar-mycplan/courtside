@@ -54,7 +54,7 @@ final class PlaybackFailureTests: XCTestCase {
         XCTAssertFalse(session.placeMark())
         XCTAssertEqual(game.marks.count, 0)
         // The footage is never removed because it failed to play.
-        XCTAssertTrue(StorageManager.fileExists(at: StorageManager.gameVideoURL(for: game)))
+        XCTAssertTrue(StorageManager.fileExists(at: StorageManager.videoURL(for: game.firstPart)))
     }
 
     func testLoopingClipPlayerReportsFailureAndRecoversOnReload() async throws {

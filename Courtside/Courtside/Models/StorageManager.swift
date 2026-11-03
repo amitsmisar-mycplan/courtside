@@ -92,8 +92,9 @@ enum StorageManager {
         gamesDirectory.appending(path: filename, directoryHint: .notDirectory)
     }
 
-    static func gameVideoURL(for game: Game) -> URL {
-        gameVideoURL(filename: game.videoFilename)
+    /// A part's video (decision 0022).
+    static func videoURL(for part: GamePart) -> URL {
+        gameVideoURL(filename: part.videoFilename)
     }
 
     static func clipURL(filename: String) -> URL {
@@ -151,8 +152,11 @@ enum StorageManager {
 
     // MARK: Record + file lifecycle
 
+    /// Removes every part's video and every clip's files, then the game (its parts, marks and clips go with it).
     @MainActor static func deleteGame(_ game: Game, in context: ModelContext) {
-        removeFile(at: gameVideoURL(for: game))
+        for part in game.parts {
+            removeFile(at: videoURL(for: part))
+        }
         for clip in game.clips {
             removeClipFiles(clip)
         }
@@ -175,25 +179,114 @@ enum StorageManager {
         save(context)
     }
 
-    /// The mark a clip was cut from: the extracted mark at the clip's stored tap time. Clips made
-    /// before the tap time was stored have no reliable match, so their mark is left alone.
+    /// The mark a clip was cut from: the mark with the clip's ID (clips are named after their mark),
+    /// else the extracted mark at the clip's stored tap time in the same part. Clips made before the
+    /// tap time was stored have no reliable match, so their mark is left alone.
     @MainActor private static func sourceMark(of clip: Clip) -> Mark? {
-        guard let tap = clip.markSeconds, let marks = clip.game?.marks else { return nil }
-        return marks.first { $0.isExtracted && abs($0.offsetSeconds - tap) < 0.001 }
+        guard let marks = clip.game?.marks else { return nil }
+        if let mark = marks.first(where: { $0.id == clip.id }) { return mark }
+        guard let tap = clip.markSeconds else { return nil }
+        let part = clip.resolvedPart
+        return marks.first { $0.isExtracted && $0.resolvedPart === part && abs($0.offsetSeconds - tap) < 0.001 }
     }
 
-    /// Deletes the full game video but keeps the game, its marks and its clips.
+    /// Deletes every part's video but keeps the game, its marks and its clips ("Delete…" on a kept game).
     @MainActor static func deleteGameVideo(_ game: Game, in context: ModelContext) {
-        removeFile(at: gameVideoURL(for: game))
-        game.isVideoAvailable = false
+        deleteVideos(of: game.parts, in: context)
+    }
+
+    /// The keep/delete prompt's "Delete": only the videos of parts whose clips are all made, so a
+    /// part added but not yet marked is kept (decision 0022).
+    @MainActor static func deleteProcessedVideos(of game: Game, in context: ModelContext) {
+        deleteVideos(of: game.processedAvailableParts, in: context)
+    }
+
+    @MainActor private static func deleteVideos(of parts: [GamePart], in context: ModelContext) {
+        for part in parts where part.isVideoAvailable {
+            removeFile(at: videoURL(for: part))
+            part.isVideoAvailable = false
+        }
         save(context)
+    }
+
+    /// Adds an imported video to `game` as its next part.
+    @MainActor @discardableResult
+    static func addPart(_ video: ImportedVideo, to game: Game, in context: ModelContext) throws -> GamePart {
+        let part = GamePart(
+            id: video.videoID,
+            index: game.nextPartIndex,
+            videoFilename: video.filename,
+            durationSeconds: video.durationSeconds,
+            videoFileSize: video.fileSize,
+            recordedAt: video.createdAt ?? .now
+        )
+        context.insert(part)
+        part.game = game
+        try context.save()
+        return part
+    }
+
+    // MARK: Parts migration (decision 0022)
+
+    /// Copies the database files once, before the parts schema first opens them, so the data from
+    /// before parts can always be restored. Never overwritten; videos are never part of it.
+    static func backUpStoreBeforeParts(storeURL: URL) {
+        let backup = storeURL.deletingLastPathComponent().appending(path: "StoreBackup-0022", directoryHint: .isDirectory)
+        guard !fileExists(at: backup) else { return }
+        do {
+            try FileManager.default.createDirectory(at: backup, withIntermediateDirectories: true)
+            for suffix in ["", "-wal", "-shm"] {
+                let file = URL(fileURLWithPath: storeURL.path + suffix)
+                guard fileExists(at: file) else { continue }
+                try FileManager.default.copyItem(at: file, to: backup.appending(path: file.lastPathComponent))
+            }
+            log.info("Backed up the game database before parts")
+        } catch {
+            log.error("Database backup before parts failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Gives every game from before parts its "Part 1": its old video, with all its marks and clips.
+    /// No file is touched and times don't change (Part 1 is the old whole video). Safe to run again:
+    /// games that have parts are skipped. Returns how many games were given a part.
+    @MainActor @discardableResult
+    static func migrateToParts(in context: ModelContext) -> Int {
+        let games = (try? context.fetch(FetchDescriptor<Game>())) ?? []
+        var migrated = 0
+        for game in games where game.parts.isEmpty {
+            let part = GamePart(
+                index: 0,
+                videoFilename: game.legacyVideoFilename,
+                durationSeconds: game.legacyDurationSeconds,
+                videoFileSize: game.legacyVideoFileSize,
+                recordedAt: game.recordedAt
+            )
+            part.isVideoAvailable = game.legacyIsVideoAvailable
+            part.processedAt = game.legacyProcessedAt
+            context.insert(part)
+            part.game = game
+            for mark in game.marks where mark.part == nil { mark.part = part }
+            for clip in game.clips where clip.part == nil { clip.part = part }
+            migrated += 1
+        }
+        guard migrated > 0 else { return 0 }
+        do {
+            try context.save()
+            log.info("Gave \(migrated) games their Part 1")
+        } catch {
+            // Nothing is lost: the legacy fields are still there, so the next launch tries again.
+            log.error("Parts migration save failed: \(error.localizedDescription)")
+            context.rollback()
+            return 0
+        }
+        return migrated
     }
 
     static func removeThumbnail(forClipID id: UUID) {
         removeFile(at: thumbnailURL(forClipID: id))
     }
 
-    /// Sweeps abandoned partial files and leftover exports, and deletes full game videos past their retention window.
+    /// Sweeps abandoned partial files and leftover exports, and deletes part videos past their retention window.
     ///
     /// Complete game videos with no `Game` record are never deleted here —
     /// `recoverRecordings(in:)` turns them into games.
@@ -212,14 +305,16 @@ enum StorageManager {
             removeFile(at: url)
         }
 
-        let games = (try? context.fetch(FetchDescriptor<Game>())) ?? []
-        for game in games where game.isVideoAvailable {
-            if !fileExists(at: gameVideoURL(for: game)) {
-                log.error("Game video missing for \(game.id); marking unavailable")
-                game.isVideoAvailable = false
-            } else if let expiresAt = game.videoExpiresAt, expiresAt <= now {
-                log.info("Full video for \(game.id) passed retention; deleting")
-                deleteGameVideo(game, in: context)
+        // Per part (decision 0022): each part's video expires 7 days after its own clips were made.
+        let parts = (try? context.fetch(FetchDescriptor<GamePart>())) ?? []
+        for part in parts where part.isVideoAvailable {
+            if !fileExists(at: videoURL(for: part)) {
+                log.error("Video missing for part \(part.id); marking unavailable")
+                part.isVideoAvailable = false
+            } else if let expiresAt = part.videoExpiresAt, expiresAt <= now {
+                log.info("Video for part \(part.id) passed retention; deleting")
+                removeFile(at: videoURL(for: part))
+                part.isVideoAvailable = false
             }
         }
         save(context)
@@ -246,19 +341,22 @@ enum StorageManager {
     /// files with no `Game` record get one. Unplayable files are left on disk untouched.
     @MainActor static func recoverRecordings(in context: ModelContext) async {
         let games = (try? context.fetch(FetchDescriptor<Game>())) ?? []
+        let parts = (try? context.fetch(FetchDescriptor<GamePart>())) ?? []
 
-        for game in games where game.isVideoAvailable && game.durationSeconds <= 0 {
-            let url = gameVideoURL(for: game)
+        for part in parts where part.isVideoAvailable && part.durationSeconds <= 0 {
+            let url = videoURL(for: part)
             if let duration = await playableDuration(of: url) {
-                game.durationSeconds = duration
-                game.videoFileSize = fileSize(at: url)
-                log.info("Recovered interrupted recording \(game.videoFilename): \(duration)s")
+                part.durationSeconds = duration
+                part.videoFileSize = fileSize(at: url)
+                log.info("Recovered interrupted recording \(part.videoFilename): \(duration)s")
             } else {
-                log.error("Interrupted recording \(game.videoFilename) isn't playable; leaving it in place")
+                log.error("Interrupted recording \(part.videoFilename) isn't playable; leaving it in place")
             }
         }
 
-        let known = Set(games.map(\.videoFilename))
+        // Every part's file is known, plus each game's video from before parts (decision 0022), so
+        // only a file no record points to is an orphan.
+        let known = Set(parts.map(\.videoFilename)).union(games.map(\.legacyVideoFilename))
         let files = (try? FileManager.default.contentsOfDirectory(
             at: gamesDirectory,
             includingPropertiesForKeys: [.creationDateKey],

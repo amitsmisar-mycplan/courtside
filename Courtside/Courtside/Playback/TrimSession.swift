@@ -2,8 +2,9 @@ import AVFoundation
 import SwiftData
 import UIKit
 
-/// State for trimming one clip: plays the chosen range of the full game video, moves the edges,
-/// and saves through `ClipExtractor`. Dragging only seeks the preview; nothing exports until Save.
+/// State for trimming one clip: plays the chosen range of its part's video, moves the edges, and
+/// saves through `ClipExtractor`. Dragging only seeks the preview; nothing exports until Save.
+/// The edges stay inside the clip's own part (decision 0022).
 @MainActor @Observable
 final class TrimSession {
     static let filmstripFrames = 8
@@ -33,16 +34,16 @@ final class TrimSession {
 
     init(clip: Clip) {
         self.clip = clip
-        let game = clip.game
-        let duration = game?.durationSeconds ?? clip.endSeconds
+        let part = clip.resolvedPart
+        let duration = part?.durationSeconds ?? clip.endSeconds
         mark = clip.markTime
         original = clip.window
         window = clip.window
         bounds = ClipWindow.trimBounds(mark: clip.markTime, gameDuration: duration, current: clip.window)
 
-        if let game, game.isVideoAvailable, StorageManager.fileExists(at: StorageManager.gameVideoURL(for: game)) {
+        if let part, part.isVideoAvailable, StorageManager.fileExists(at: StorageManager.videoURL(for: part)) {
             unavailableReason = nil
-            player.replaceCurrentItem(with: AVPlayerItem(url: StorageManager.gameVideoURL(for: game)))
+            player.replaceCurrentItem(with: AVPlayerItem(url: StorageManager.videoURL(for: part)))
             observeTime()
         } else {
             unavailableReason = "The full game video has been deleted, so this clip can't be trimmed. Trimming re-cuts the clip from the full video."
@@ -51,15 +52,15 @@ final class TrimSession {
 
     var canTrim: Bool { unavailableReason == nil }
     var hasChanges: Bool { window != original }
-    var defaultWindow: ClipWindow { ClipWindow.defaultTrim(mark: mark, gameDuration: clip.game?.durationSeconds ?? bounds.end) }
+    var defaultWindow: ClipWindow { ClipWindow.defaultTrim(mark: mark, gameDuration: clip.resolvedPart?.durationSeconds ?? bounds.end) }
     var isDefault: Bool { abs(window.start - defaultWindow.start) < 0.05 && abs(window.end - defaultWindow.end) < 0.05 }
     var canSave: Bool { canTrim && hasChanges && !isSaving }
 
     // MARK: Preview
 
     func load() async {
-        guard canTrim, let game = clip.game else { return }
-        let url = StorageManager.gameVideoURL(for: game)
+        guard canTrim, let part = clip.resolvedPart else { return }
+        let url = StorageManager.videoURL(for: part)
         if let size = try? await SlowMoComposer.displaySize(of: url), size.height > 0 {
             aspectRatio = size.width / size.height
         }

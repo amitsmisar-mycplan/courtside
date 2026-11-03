@@ -1,6 +1,8 @@
 # 0004 — Full-video retention vs. nudge and re-marking
 
-**Status:** Accepted · 2026-09-26, revised 2026-09-28 (Keep = forever, founder decision)
+**Status:** Accepted · 2026-09-26, revised 2026-09-28 (Keep = forever, founder decision). For games with more than one
+video, the 7-day clock and the prompt's Delete work per part, and Keep covers the whole game:
+[0022](0022-multi-part-games.md).
 
 ## Context
 Nudge trim re-exports from the full game video, and "add more marks" plays it. The spec also deletes that video

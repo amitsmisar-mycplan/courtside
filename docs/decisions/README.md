@@ -25,3 +25,4 @@ One file per decision that deviates from or extends the spec. Add new ones with 
 | [0019](0019-game-labels.md) | Team and tournament on games; burned-in label at the open and close of exported clips | Accepted |
 | [0020](0020-label-on-share.md) | Share carries the game label (labelled Original rendered first); fast path without one | Accepted |
 | [0021](0021-faster-label-export.md) | Labelled exports at 1080p by default (HEVC 1080p preset), cached while the app runs | Accepted |
+| [0022](0022-multi-part-games.md) | Games with more than one video (parts): model, migration, per-part retention | Accepted |
