@@ -160,6 +160,8 @@ final class LabelExportSessionTests: XCTestCase {
     }
 
     override func tearDown() async throws {
+        // The labelled copy is cached (decision 0021); remove it with the source.
+        LabelledExportCache.shared.removeAll()
         try? FileManager.default.removeItem(at: source)
     }
 

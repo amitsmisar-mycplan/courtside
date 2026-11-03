@@ -71,6 +71,14 @@ enum StorageManager {
         removeFile(at: partialURL(for: url))
     }
 
+    /// Removes every temporary export of a clip, cached labelled copies included (decision 0021).
+    static func removeExports(forClipID id: UUID) {
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: exportsDirectory.path)) ?? []
+        for name in names where name.hasPrefix(id.uuidString) {
+            removeFile(at: exportsDirectory.appending(path: name))
+        }
+    }
+
     static func makeClipFilename(id: UUID) -> String {
         "\(id.uuidString).mov"
     }
@@ -198,7 +206,7 @@ enum StorageManager {
             }
         }
 
-        // Exports are only kept until saved; anything still here was interrupted.
+        // Exports are only kept until saved or, for labelled copies, while the app runs (decision 0021).
         for url in (try? FileManager.default.contentsOfDirectory(at: exportsDirectory, includingPropertiesForKeys: nil)) ?? [] {
             log.info("Removing leftover export \(url.lastPathComponent)")
             removeFile(at: url)
@@ -290,6 +298,7 @@ enum StorageManager {
         removeFile(at: clipURL(for: clip))
         if let url = clip.slowMoURL { removeFile(at: url) }
         removeThumbnail(forClipID: clip.id)
+        removeExports(forClipID: clip.id)
     }
 
     @MainActor private static func save(_ context: ModelContext) {

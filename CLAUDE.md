@@ -36,7 +36,8 @@ All tests must pass and the build must have zero warnings before committing.
   (player wrappers live in `Playback/`, see decision 0003).
 - **No logic branches on `Game.source`** past game creation. If you need to, stop and raise it.
 - **Copy, never reference,** picked videos. Balance security-scoped access.
-- Clip export: `AVAssetExportPresetHEVCHighestQuality`, never passthrough; serial, never parallel.
+- Clip export: `AVAssetExportPresetHEVCHighestQuality`, never passthrough; serial, never parallel. Only labelled
+  exports may use the HEVC 1080p preset (decision 0021).
 - **Losing footage is the one unforgivable bug.** Never delete a complete game video that has no `Game` record — orphans are for step 7 recovery.
 - Non-goals (computer vision, stats, cloud/accounts, reels, rosters, Android/iPad/Watch) are out of scope.
 

@@ -35,7 +35,7 @@ struct LabelStep: ExportFrameStep {
     let label: LabelText
 
     /// The parts the label is built from, kept apart so long names can be shortened to fit.
-    struct LabelText: Equatable, Sendable {
+    struct LabelText: Hashable, Sendable {
         var team: String?
         var opponent: String?
         var tournament: String?

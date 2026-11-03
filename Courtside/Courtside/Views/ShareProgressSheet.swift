@@ -41,6 +41,9 @@ struct ShareProgressSheet: View {
                 ProgressView(value: session.progress)
                 Text("\(Int(session.progress * 100))%").monospacedDigit().foregroundStyle(.secondary)
                 Text("Adding label, takes longer").font(.caption).foregroundStyle(.secondary)
+                if let start = session.renderStartedAt {
+                    Text("Elapsed \(Text(start, style: .timer))").font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                }
             }
             .frame(maxHeight: .infinity)
         case .sharing, .finished, .cancelled:
