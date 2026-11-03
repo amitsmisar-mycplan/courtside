@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-10-30_
+_Last updated: 2026-11-02_
 
 | Step | What | Status |
 |---|---|---|
@@ -59,6 +59,12 @@ Original keeps its instant save when there's no label ([0019](../decisions/0019-
 **Feature: label on Share** — Share now sends the labelled Original when a label applies (rendered first, with
 progress and Cancel, temp file removed when the sheet closes); without a label it shares the clip instantly as before
 ([0020](../decisions/0020-label-on-share.md)). Built on `feature/label-on-share`.
+
+**Faster label export** — labelled Save to Photos, Vertical and Share are capped at 1080p by default (HEVC 1080p preset):
+a 13 s 4K clip takes 65 s instead of 178 s on the Simulator. "Labelled clip quality" in Settings keeps Full quality as
+an option. Labelled copies are cached while the app runs, so the same clip again is instant. Elapsed time in the
+progress sheets ([0021](../decisions/0021-faster-label-export.md)). Built on `feature/faster-label-export`.
+UI not yet checked in the Simulator.
 
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 

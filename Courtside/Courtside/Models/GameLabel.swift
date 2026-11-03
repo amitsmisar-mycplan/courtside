@@ -148,9 +148,28 @@ enum ExportLabelMode: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+/// How labelled exports are encoded (decision 0021). A label forces a full re-encode; capping it at
+/// 1080p makes 4K clips much faster to save and share. Clips themselves are never affected.
+enum LabelledExportQuality: String, CaseIterable, Identifiable, Hashable, Sendable {
+    /// At most 1920 on the long side, HEVC 1080p preset.
+    case hd1080
+    /// The clip's own resolution, HEVC Highest Quality: the behavior before decision 0021.
+    case full
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .hd1080: "1080p (faster)"
+        case .full: "Full quality"
+        }
+    }
+}
+
 enum LabelSettings {
     static let myTeamKey = "myTeamName"
     static let exportLabelKey = "exportLabelMode"
+    static let labelledQualityKey = "labelledExportQuality"
 
     /// Prefills new games' team. Nil when not set.
     static var myTeam: String? {
@@ -159,5 +178,9 @@ enum LabelSettings {
 
     static var exportLabel: ExportLabelMode {
         UserDefaults.standard.string(forKey: exportLabelKey).flatMap(ExportLabelMode.init(rawValue:)) ?? .openAndClose
+    }
+
+    static var labelledQuality: LabelledExportQuality {
+        UserDefaults.standard.string(forKey: labelledQualityKey).flatMap(LabelledExportQuality.init(rawValue:)) ?? .hd1080
     }
 }

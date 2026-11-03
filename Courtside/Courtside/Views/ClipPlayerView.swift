@@ -159,11 +159,11 @@ struct ClipPlayerView: View {
         }
     }
 
-    /// With the game label on, a labelled copy is made first (progress sheet); otherwise the
-    /// clip itself goes straight to the share sheet, as before.
+    /// With the game label on, a labelled copy is made first (progress sheet) unless one is already
+    /// cached; otherwise the clip itself goes straight to the share sheet, as before.
     private func share() {
         let session = ClipShareSession(clipID: clip.id, source: currentURL, label: .forExport(game: clip.game))
-        if session.addsLabel {
+        if session.needsRender {
             looper.pause()
             shareSession = session
         } else {

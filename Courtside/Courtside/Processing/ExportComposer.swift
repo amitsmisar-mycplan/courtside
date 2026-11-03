@@ -29,7 +29,9 @@ enum ExportComposer {
         let orientation = orientation(of: transform)
         let videoSize = displaySize(naturalSize: naturalSize, orientation: orientation)
 
-        let canvas: CGSize = plan.format == .vertical ? ExportFormat.verticalRenderSize : videoSize
+        let canvas: CGSize = plan.format == .vertical
+            ? ExportFormat.verticalRenderSize
+            : ExportPlan.cappedSize(videoSize, maxLongSide: plan.maxLongSide)
         let foreground = plan.format == .vertical
             ? VerticalLayout.foreground(videoSize: videoSize, canvas: canvas)
             : CGRect(origin: .zero, size: canvas)
