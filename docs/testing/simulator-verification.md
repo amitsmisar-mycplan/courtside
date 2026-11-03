@@ -253,3 +253,29 @@ game deletion and launch cleanup remove cached copies, at most 4 kept, unlabelle
 **Not yet checked in the Simulator UI:** the Settings picker and the elapsed time in the progress sheets (Simulator
 access to "Courtside Tests" wasn't granted during this run).
 
+## Games with more than one video — 2026-11-03, "Courtside Tests" Simulator (iPhone 17 Pro, iOS 27)
+
+New app build on the test device. Video: the 5 s 4K clip `20261004_130244.mp4` in the device's Photos, added twice
+(the same video may be added again, decision 0022).
+- Import from the Games list as today: "vs Lakers", one part. The game page looked as before, with a new "Add Video"
+  button under "Watch and Mark Plays".
+- Add Video → Import from Photos: "Adding Video", then back to the game page with **2 Parts**: "Part 1 · 0:05" and
+  "Part 2 · 0:05", each "0 marks · 26.1 MB". The totals read 0:10 and 52.3 MB, and "Watch and Mark Plays" made way for
+  the Parts list.
+- Tapped Part 2 and marked once (count 1). Done opened clip-making, which made 1 clip. The prompt read "Keep this
+  game's videos? (26.1 MB)", only Part 2, the part with clips. Keep.
+- Tapped Part 1: its marking screen started at 0 marks (Part 2's mark not shown), and one mark was placed. Clip-making
+  ran with no prompt, because the game was already kept.
+- Game page: "2 Clips" listed as "Part 1 · 0:00 – 0:05", then "Part 2 · 0:00 – 0:05". Both clips were clamped to their
+  own 5 s part, and the kept line read "This game's videos (52.3 MB) are kept."
+- Clip player: "Part 2 · 0:00 – 0:05 · 5 sec".
+- Relaunched: the Games list shows one row for the game: 1 clip, 0:10, 63 MB.
+- Fixed during the check: the part rows' text took the button's accent tint; it now uses plain colours.
+
+Unit tests: `PartsMigrationTests` (old-format store → one part with everything intact; runs once; store backed up once)
+and `MultiPartGameTests` (model, clamping, same tap time in two parts, trim bounds, per-part marking and Undo, resume
+across parts, per-part expiry, prompt Delete, missing-file check, recovery, clip and game deletion).
+
+Leftovers on this device from cut-off test runs earlier today: three "Recovered" 1:00 games and three small clip files
+from test videos. They were left as they are.
+

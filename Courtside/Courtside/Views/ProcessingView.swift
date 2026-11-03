@@ -62,17 +62,18 @@ struct ProcessingView: View {
         .onChange(of: scenePhase) { _, _ in resumeIfInterrupted() }
         .onChange(of: extractor.phase) { _, phase in
             resumeIfInterrupted()
-            if phase == .finished, extractor.completed > 0, game.isVideoAvailable, !game.keepsVideo {
+            // Asked about the parts whose clips are all made; a part not yet marked is never at stake.
+            if phase == .finished, extractor.completed > 0, !game.processedAvailableParts.isEmpty, !game.keepsVideo {
                 askAboutVideo = true
             }
         }
-        .alert("Keep the full game video? (\(Format.bytes(game.videoFileSize)))", isPresented: $askAboutVideo) {
+        .alert(keepVideoTitle, isPresented: $askAboutVideo) {
             Button("Keep", role: .cancel) {
                 game.keepsVideo = true
                 try? modelContext.save()
             }
             Button("Delete", role: .destructive) {
-                StorageManager.deleteGameVideo(game, in: modelContext)
+                StorageManager.deleteProcessedVideos(of: game, in: modelContext)
             }
         } message: {
             Text(keepVideoMessage)
@@ -145,8 +146,18 @@ struct ProcessingView: View {
         }
     }
 
+    /// Size of what "Delete" would remove (decision 0022).
+    private var keepVideoTitle: String {
+        let bytes = game.processedAvailableParts.reduce(0) { $0 + $1.videoFileSize }
+        return game.hasSeveralParts
+            ? "Keep this game's videos? (\(Format.bytes(bytes)))"
+            : "Keep the full game video? (\(Format.bytes(bytes)))"
+    }
+
     private var keepVideoMessage: String {
-        var message = "Deleting it frees space but means you can't add more marks or adjust clip timing. You can delete it later from the game page."
+        var message = game.hasSeveralParts
+            ? "Delete removes the videos of the parts you've made clips from. Parts you haven't marked yet are kept. Deleting frees space but means you can't add more marks or adjust clip timing in those parts."
+            : "Deleting it frees space but means you can't add more marks or adjust clip timing. You can delete it later from the game page."
         if game.source == .imported {
             message += " The original is still in your Photos library."
         }

@@ -72,13 +72,13 @@ final class ClipExtractor {
     /// 1-based index of the clip being exported.
     var currentIndex: Int { min(total, completed + failed + 1) }
 
-    /// Makes clips for the game's pending marks. Returns false if a batch is already running
-    /// anywhere in the app.
+    /// Makes clips for the game's pending marks, in every part whose video is there, in part order
+    /// then time. Returns false if a batch is already running anywhere in the app.
     @discardableResult
     func start(game: Game, context: ModelContext) -> Bool {
         guard phase != .running, !Self.isBusy else { return false }
         Self.isBusy = true
-        let marks = game.pendingMarks
+        let marks = game.extractableMarks
         total = marks.count
         completed = 0
         failed = 0
@@ -134,26 +134,36 @@ final class ClipExtractor {
             Self.isBusy = false
         }
 
-        let source = StorageManager.gameVideoURL(for: game)
         let preRoll = ClipSettings.preRoll
         let postRoll = ClipSettings.postRoll
 
         for mark in marks {
             if Task.isCancelled { break }
             currentProgress = 0
+            guard let part = mark.resolvedPart, part.isVideoAvailable else {
+                // Its video went while waiting; the mark stays pending, as for a deleted game video.
+                failed += 1
+                continue
+            }
             // Already has its clip (e.g. made just before the app was closed): never make a second one.
-            if game.clips.contains(where: { $0.id == mark.id || $0.markSeconds.map { abs($0 - mark.offsetSeconds) < 0.001 } == true }) {
+            // Tap times are only compared within the same part (decision 0022).
+            if game.clips.contains(where: { clip in
+                clip.id == mark.id
+                    || (clip.resolvedPart === part && clip.markSeconds.map { abs($0 - mark.offsetSeconds) < 0.001 } == true)
+            }) {
                 mark.isExtracted = true
                 try? context.save()
                 completed += 1
                 continue
             }
+            // Clamped to this part's video: a clip never crosses into another part.
             let window = ClipWindow.around(
                 mark: mark.offsetSeconds,
                 preRoll: preRoll,
                 postRoll: postRoll,
-                gameDuration: game.durationSeconds
+                gameDuration: part.durationSeconds
             )
+            let source = StorageManager.videoURL(for: part)
             guard window.isExtractable else {
                 Self.log.error("Skipping mark at \(mark.offsetSeconds)s: window too short")
                 mark.isExtracted = true
@@ -186,8 +196,9 @@ final class ClipExtractor {
                 )
                 context.insert(clip)
                 clip.game = game
+                clip.part = part
                 mark.isExtracted = true
-                game.processedAt = .now
+                part.processedAt = .now
                 try? context.save()
                 completed += 1
             } catch is CancellationError {
@@ -210,24 +221,25 @@ final class ClipExtractor {
         }
     }
 
-    /// Re-cuts `clip` from the full game video to `window`, replacing its file in place (same
+    /// Re-cuts `clip` from its part's video to `window`, replacing its file in place (same
     /// filename; the new file is written aside first, so a failed export keeps the old clip).
+    /// The window must lie inside that part: a clip never crosses into another (decision 0022).
     static func trim(
         _ clip: Clip,
         to window: ClipWindow,
         context: ModelContext,
         progress: @escaping @MainActor (Double) -> Void
     ) async throws {
-        guard let game = clip.game, game.isVideoAvailable,
-              StorageManager.fileExists(at: StorageManager.gameVideoURL(for: game))
+        guard let part = clip.resolvedPart, part.isVideoAvailable,
+              StorageManager.fileExists(at: StorageManager.videoURL(for: part))
         else { throw ClipExportError.sourceUnavailable }
         guard window.duration >= ClipWindow.trimMinimumDuration - 0.001,
-              window.start >= 0, window.end <= game.durationSeconds + 0.001
+              window.start >= 0, window.end <= part.durationSeconds + 0.001
         else { throw ClipExportError.cannotTrim }
         // Fixed before the edges move, so the tap stays on the same game moment.
         let mark = clip.markTime
         let destination = StorageManager.clipURL(for: clip)
-        try await export(source: StorageManager.gameVideoURL(for: game), window: window, to: destination, progress: progress)
+        try await export(source: StorageManager.videoURL(for: part), window: window, to: destination, progress: progress)
         StorageManager.removeThumbnail(forClipID: clip.id)
         // The slow-motion render was cut from the old clip, so it's stale now.
         StorageManager.removeSlowMoFile(of: clip)
@@ -350,8 +362,17 @@ final class ClipExtractor {
         defer { poller.cancel() }
 
         do {
+            // A cancel can land before the export starts (iOS ending background time between two
+            // clips). Cancelling a session that hasn't started and then starting it raises an
+            // exception that kills the app, so the two are ordered through `start`.
+            let start = ExportStart()
             try await withTaskCancellationHandler {
                 try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                    guard start.begin() else {
+                        continuation.resume(throwing: CancellationError())
+                        return
+                    }
+                    defer { start.didBegin() }
                     session.exportAsynchronously {
                         switch session.status {
                         case .completed:
@@ -369,7 +390,7 @@ final class ClipExtractor {
                     }
                 }
             } onCancel: {
-                session.cancelExport()
+                if start.cancel() { session.cancelExport() }
             }
             try StorageManager.moveReplacing(partialURL, to: destination)
         } catch {
@@ -377,5 +398,37 @@ final class ClipExtractor {
             throw error
         }
         await progress(1)
+    }
+}
+
+/// Orders "start the export" against "cancel it", which arrive on different threads: a cancel
+/// before the start means it never starts; a cancel after it cancels the running export.
+private final class ExportStart: @unchecked Sendable {
+    private let lock = NSLock()
+    private var isCancelled = false
+    private var hasStarted = false
+
+    /// False when already cancelled. Otherwise holds the lock until `didBegin()`, so a cancel
+    /// arriving meanwhile waits until `exportAsynchronously` has been called.
+    func begin() -> Bool {
+        lock.lock()
+        if isCancelled {
+            lock.unlock()
+            return false
+        }
+        return true
+    }
+
+    func didBegin() {
+        hasStarted = true
+        lock.unlock()
+    }
+
+    /// True when the export is running and must be cancelled.
+    func cancel() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        isCancelled = true
+        return hasStarted
     }
 }

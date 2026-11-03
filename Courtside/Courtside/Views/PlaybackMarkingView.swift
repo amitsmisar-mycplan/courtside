@@ -4,6 +4,8 @@ import SwiftUI
 /// Full-screen game playback where the whole screen, except the control strip, is the mark button.
 struct PlaybackMarkingView: View {
     let game: Game
+    /// The part to mark; Part 1 when nil (decision 0022).
+    var part: GamePart? = nil
     let modelContext: ModelContext
 
     @Environment(\.dismiss) private var dismiss
@@ -60,7 +62,7 @@ struct PlaybackMarkingView: View {
         .lockedOrientation(.allButUpsideDown)
         .onAppear {
             if session == nil {
-                session = MarkingSession(game: game, context: modelContext)
+                session = MarkingSession(game: game, part: part, context: modelContext)
             }
             haptics.prepare()
             UIApplication.shared.isIdleTimerDisabled = true

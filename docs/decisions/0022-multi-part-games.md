@@ -1,7 +1,7 @@
 # 0022 — Games with more than one video ("parts")
 
-**Status:** Proposed · 2026-11-03 (founder's "multi-part games" brief). Plan and open questions agreed 2026-11-03;
-built once the founder says "go". Changes the retention rules of [0004](0004-video-retention-and-nudge.md) for games with more than one video.
+**Status:** Accepted · 2026-11-03 (founder's "multi-part games" brief; plan and answers agreed, "go" given the same
+day). Built on `feature/multi-part-games`. Changes the retention rules of [0004](0004-video-retention-and-nudge.md) for games with more than one video.
 
 ## Data model
 New `GamePart` model, owned by `Game` (cascade delete):
@@ -127,6 +127,17 @@ About 20 app files (4 models + the new one, `StorageManager`, app startup, impor
 view, trim session, extractor, resume, recording session, game page, processing view, clip player), about 14 test
 files updated (mostly `Game(...)` call sites) plus 3 new (migration, multi-part model and deletion, and a stress-harness
 scenario), and 4 docs. **About 40 files.**
+
+## As built
+- As planned above. `Game.init` makes Part 1, so every new game (import, recording, orphan recovery) has one.
+  `StorageManager.migrateToParts(in:)` runs at launch right after the container opens, before cleanup and recovery.
+- Add Video is a menu (Photos or Files) under the game page's actions, like Add Game, into the same `ImportFlowView`.
+  It closes once the part is saved.
+- **Also fixed: a crash in clip-making when background time runs out.** If iOS ended background time just as the next
+  clip's export was starting, the export was cancelled before it began. Starting it then raised an exception that
+  killed the app. This was in the code before parts, and the parts change made `ClipResumeTests` hit it every time.
+  `ClipExtractor.run` now orders "start" against "cancel" (`ExportStart`): a cancel before the start means the
+  export never starts. The test passed three runs in a row after the fix.
 
 ## Not built (extras)
 Reordering parts, deleting a single part or its video, recording into an existing game, merging games, moving a part

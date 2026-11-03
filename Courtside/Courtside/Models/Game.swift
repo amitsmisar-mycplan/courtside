@@ -18,20 +18,14 @@ enum GameSource: String, Codable {
     var id: UUID
     /// Optional free-text name. Empty for new games; rows fall back to the opponent, then "Untitled game".
     var label: String
-    /// When the game was played: the video's creation date on import, the start time when recording. Editable.
+    /// When the game was played: Part 1's creation date on import, the start time when recording. Editable.
+    /// Adding a part doesn't change it (decision 0022).
     var recordedAt: Date
-    /// Relative filename only. Rebuild the URL through `StorageManager`.
-    var videoFilename: String
-    var durationSeconds: Double
     var source: GameSource
+    /// Every mark, in every part, has its clip.
     var isProcessed: Bool
-    /// Size of the full game video, captured at creation so views never stat files.
-    var videoFileSize: Int64
-    /// False once the full game video has been deleted (by the user or the 7-day cleanup).
-    var isVideoAvailable: Bool
-    /// When clips were last extracted. Starts the 7-day auto-delete clock for the full video.
-    var processedAt: Date?
-    /// The parent answered "Keep" to the full-video prompt, so it's never auto-deleted.
+    /// The parent answered "Keep" to the full-video prompt, so no part's video is ever auto-deleted.
+    /// Game-wide: it covers parts added later too (decision 0022).
     var keepsVideo: Bool = false
     /// Game details, all optional and filled in whenever the parent gets to it (decision 0013).
     var opponent: String?
@@ -43,7 +37,19 @@ enum GameSource: String, Codable {
     var tournament: String?
     @Relationship(deleteRule: .cascade, inverse: \Mark.game) var marks: [Mark]
     @Relationship(deleteRule: .cascade, inverse: \Clip.game) var clips: [Clip]
+    /// The game's videos (decision 0022). Use `orderedParts`.
+    @Relationship(deleteRule: .cascade, inverse: \GamePart.game) var parts: [GamePart] = []
 
+    // Before decision 0022 a game held one video. These keep that video's details as stored then;
+    // new games write Part 1's values here too. Only the parts migration and orphan recovery's list
+    // of known files read them. Use the parts for everything else.
+    @Attribute(originalName: "videoFilename") var legacyVideoFilename: String
+    @Attribute(originalName: "durationSeconds") var legacyDurationSeconds: Double
+    @Attribute(originalName: "videoFileSize") var legacyVideoFileSize: Int64
+    @Attribute(originalName: "isVideoAvailable") var legacyIsVideoAvailable: Bool
+    @Attribute(originalName: "processedAt") var legacyProcessedAt: Date?
+
+    /// A new game with its first video as Part 1.
     init(
         id: UUID = UUID(),
         label: String,
@@ -57,16 +63,20 @@ enum GameSource: String, Codable {
         self.id = id
         self.label = label
         self.recordedAt = recordedAt
-        self.videoFilename = videoFilename
-        self.durationSeconds = durationSeconds
         self.source = source
         self.isProcessed = false
-        self.videoFileSize = videoFileSize
         self.team = team
-        self.isVideoAvailable = true
-        self.processedAt = nil
+        self.legacyVideoFilename = videoFilename
+        self.legacyDurationSeconds = durationSeconds
+        self.legacyVideoFileSize = videoFileSize
+        self.legacyIsVideoAvailable = true
+        self.legacyProcessedAt = nil
         self.marks = []
         self.clips = []
+        self.parts = [GamePart(
+            index: 0, videoFilename: videoFilename, durationSeconds: durationSeconds,
+            videoFileSize: videoFileSize, recordedAt: recordedAt
+        )]
     }
 }
 
@@ -100,13 +110,62 @@ extension Game {
         return "\(side(ourScore))–\(side(theirScore))"
     }
 
-    /// Marks that don't have a clip yet.
-    var pendingMarks: [Mark] {
-        marks.filter { !$0.isExtracted }.sorted { $0.offsetSeconds < $1.offsetSeconds }
+    // MARK: Parts
+
+    /// In the order they were added.
+    var orderedParts: [GamePart] {
+        parts.sorted { $0.index < $1.index }
     }
 
+    var hasSeveralParts: Bool { parts.count > 1 }
+
+    /// The index the next added video gets.
+    var nextPartIndex: Int { (parts.map(\.index).max() ?? -1) + 1 }
+
+    /// Total length of every part's video.
+    var durationSeconds: Double {
+        parts.reduce(0) { $0 + $1.durationSeconds }
+    }
+
+    /// True while any part's video is still on the phone.
+    var isVideoAvailable: Bool {
+        parts.contains(where: \.isVideoAvailable)
+    }
+
+    /// Size of the videos still on the phone.
+    var availableVideoBytes: Int64 {
+        parts.filter(\.isVideoAvailable).reduce(0) { $0 + $1.videoFileSize }
+    }
+
+    /// Parts whose video the keep/delete prompt's "Delete" removes: available, with every mark made
+    /// into a clip. A part added but not yet marked is never deleted by it (decision 0022).
+    var processedAvailableParts: [GamePart] {
+        orderedParts.filter { $0.isVideoAvailable && $0.isProcessed }
+    }
+
+    /// The soonest a part's video will be auto-deleted, if any part's will.
+    var videoExpiresAt: Date? {
+        parts.compactMap(\.videoExpiresAt).min()
+    }
+
+    // MARK: Marks and clips
+
+    /// Marks that don't have a clip yet, in part order, then time.
+    var pendingMarks: [Mark] {
+        marks.filter { !$0.isExtracted }.sorted(by: Self.partThenTime)
+    }
+
+    /// Pending marks whose part video is still there to cut from.
+    var extractableMarks: [Mark] {
+        pendingMarks.filter { $0.resolvedPart?.isVideoAvailable == true }
+    }
+
+    /// In part order, then time.
     var sortedClips: [Clip] {
-        clips.sorted { $0.startSeconds < $1.startSeconds }
+        clips.sorted {
+            let (a, b) = ($0.resolvedPart?.index ?? 0, $1.resolvedPart?.index ?? 0)
+            return a != b ? a < b : $0.startSeconds < $1.startSeconds
+        }
     }
 
     var clipsStorageBytes: Int64 {
@@ -114,14 +173,12 @@ extension Game {
     }
 
     var storageBytes: Int64 {
-        (isVideoAvailable ? videoFileSize : 0) + clipsStorageBytes
+        availableVideoBytes + clipsStorageBytes
     }
 
-    /// When the launch-time cleanup will delete the full video, if ever. Only videos whose
-    /// keep/delete prompt went unanswered expire.
-    var videoExpiresAt: Date? {
-        guard isVideoAvailable, !keepsVideo, let processedAt else { return nil }
-        return processedAt.addingTimeInterval(Self.videoRetention)
+    private static func partThenTime(_ a: Mark, _ b: Mark) -> Bool {
+        let (left, right) = (a.resolvedPart?.index ?? 0, b.resolvedPart?.index ?? 0)
+        return left != right ? left < right : a.offsetSeconds < b.offsetSeconds
     }
 }
 

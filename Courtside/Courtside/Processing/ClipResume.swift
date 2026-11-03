@@ -51,7 +51,8 @@ struct UnfinishedClips {
     @MainActor func gamesToFinish(from games: [Game]) -> [Game] {
         var waiting: [Game] = []
         for id in gameIDs {
-            if let game = games.first(where: { $0.id == id }), game.isVideoAvailable, !game.pendingMarks.isEmpty {
+            // Pending marks in a part whose video is still there, in any part (decision 0022).
+            if let game = games.first(where: { $0.id == id }), !game.extractableMarks.isEmpty {
                 waiting.append(game)
             } else {
                 remove(id)

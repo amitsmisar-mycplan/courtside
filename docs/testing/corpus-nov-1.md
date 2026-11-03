@@ -209,3 +209,19 @@ Not bugs:
   succeeded and passed its checks.
 - Correction to `corpus-oct-30.md`: it says rotation is 0° on every file, but `DJI_20261004_103320_13` is stored
   1080×1920 with a 90° tag (and `20261007_165634` has 90°). Docs only; the app handles both.
+
+## Multi-part scenario — 2026-11-03, "Courtside Tests" Simulator
+
+`CorpusStressTests/testMultiPartGame` with `TEST_RUNNER_COURTSIDE_MARKS_PER_VIDEO=3`. It ran on the two smallest videos
+only, not the full corpus, taking 22.5 min, and **passed**.
+- Part 1 `20261031_144105.mp4` (1.91 GB, portrait) and Part 2 `20261031_151837.mp4` (1.34 GB). Both were imported as
+  copies in 2.0 s and became one game.
+- 3 marks per part through the marking session (early, mid, last 1.5 s). Each part's screen showed only its own 3.
+- 6 clips made, 0 failed, in 955.8 s: Part 1 0.00–8.00, 177.66–190.66, 360.31–371.81 s; Part 2 0.00–8.00,
+  122.37–135.37, 249.73–261.23 s. Each clip was clamped to its own part, and file lengths matched within 0.15 s. Six
+  unique files, one per mark.
+- Trim of the last Part 2 clip, out to its limits: 244.73–261.23 s (16.50 s), stopping at Part 2's end. It took 245.9 s.
+- Vertical save of a Part 1 clip with the label: 1080×1920, 56.6 s. Labelled share of a Part 2 clip: 87.9 s.
+- Deleting the game left 0 files behind (videos, clips, thumbnails and the cached labelled copy all removed), and the
+  source videos were unchanged.
+

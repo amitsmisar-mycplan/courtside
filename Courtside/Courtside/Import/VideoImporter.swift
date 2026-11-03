@@ -5,9 +5,10 @@ import PhotosUI
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// A game video that has been copied into `Documents/Games/` and validated.
+/// A game video that has been copied into `Documents/Games/` and validated. `videoID` names the
+/// file; a new game takes it as its ID, an added part as the part's (decision 0022).
 struct ImportedVideo: Sendable {
-    let gameID: UUID
+    let videoID: UUID
     let filename: String
     let durationSeconds: Double
     let createdAt: Date?
@@ -59,18 +60,18 @@ enum VideoImporter {
         } onCancel: {
             handle.cancel()
         }
-        return try await finalize(partialURL: staged.partialURL, gameID: staged.gameID, fileExtension: staged.fileExtension)
+        return try await finalize(partialURL: staged.partialURL, videoID: staged.videoID, fileExtension: staged.fileExtension)
     }
 
     /// Runs inside the Photos transfer, while the received file still exists.
     fileprivate static func stage(receivedFile source: URL) throws -> StagedPhotosVideo {
         try requireSpace(forCopying: StorageManager.fileSize(at: source))
-        let gameID = UUID()
+        let videoID = UUID()
         let fileExtension = normalizedExtension(of: source)
-        let partialURL = partialURL(gameID: gameID, fileExtension: fileExtension)
+        let partialURL = partialURL(videoID: videoID, fileExtension: fileExtension)
         // Same volume, so on APFS this is a clone and effectively instant.
         try FileManager.default.copyItem(at: source, to: partialURL)
-        return StagedPhotosVideo(partialURL: partialURL, gameID: gameID, fileExtension: fileExtension)
+        return StagedPhotosVideo(partialURL: partialURL, videoID: videoID, fileExtension: fileExtension)
     }
 
     // MARK: Files
@@ -86,16 +87,16 @@ enum VideoImporter {
 
         let size = StorageManager.fileSize(at: source)
         try requireSpace(forCopying: size)
-        let gameID = UUID()
+        let videoID = UUID()
         let fileExtension = normalizedExtension(of: source)
-        let partialURL = partialURL(gameID: gameID, fileExtension: fileExtension)
+        let partialURL = partialURL(videoID: videoID, fileExtension: fileExtension)
         do {
             try await copy(from: source, to: partialURL, totalBytes: size, report: report)
         } catch {
             StorageManager.removeFile(at: partialURL)
             throw error
         }
-        return try await finalize(partialURL: partialURL, gameID: gameID, fileExtension: fileExtension)
+        return try await finalize(partialURL: partialURL, videoID: videoID, fileExtension: fileExtension)
     }
 
     private static func copy(
@@ -128,8 +129,8 @@ enum VideoImporter {
     // MARK: Shared
 
     /// Validates the staged copy, then moves it to its final name. Deletes it on any failure.
-    private static func finalize(partialURL: URL, gameID: UUID, fileExtension: String) async throws -> ImportedVideo {
-        let filename = StorageManager.makeGameVideoFilename(id: gameID, fileExtension: fileExtension)
+    private static func finalize(partialURL: URL, videoID: UUID, fileExtension: String) async throws -> ImportedVideo {
+        let filename = StorageManager.makeGameVideoFilename(id: videoID, fileExtension: fileExtension)
         let finalURL = StorageManager.gameVideoURL(filename: filename)
         do {
             try Task.checkCancellation()
@@ -154,7 +155,7 @@ enum VideoImporter {
             try Task.checkCancellation()
             try FileManager.default.moveItem(at: partialURL, to: finalURL)
             return ImportedVideo(
-                gameID: gameID,
+                videoID: videoID,
                 filename: filename,
                 durationSeconds: duration,
                 createdAt: createdAt,
@@ -181,8 +182,8 @@ enum VideoImporter {
         return ext.isEmpty ? "mov" : ext
     }
 
-    private static func partialURL(gameID: UUID, fileExtension: String) -> URL {
-        let filename = StorageManager.makeGameVideoFilename(id: gameID, fileExtension: fileExtension)
+    private static func partialURL(videoID: UUID, fileExtension: String) -> URL {
+        let filename = StorageManager.makeGameVideoFilename(id: videoID, fileExtension: fileExtension)
         return StorageManager.partialURL(for: StorageManager.gameVideoURL(filename: filename))
     }
 }
@@ -191,7 +192,7 @@ enum VideoImporter {
 /// importing closure, so the copy into app storage happens there.
 private struct StagedPhotosVideo: Transferable {
     let partialURL: URL
-    let gameID: UUID
+    let videoID: UUID
     let fileExtension: String
 
     static var transferRepresentation: some TransferRepresentation {

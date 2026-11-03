@@ -20,21 +20,21 @@ final class GameRetentionTests: XCTestCase {
     func testUnansweredPromptExpiresSevenDaysAfterProcessing() {
         let game = makeGame()
         let processedAt = Date(timeIntervalSince1970: 1_000_000)
-        game.processedAt = processedAt
+        game.firstPart.processedAt = processedAt
         XCTAssertEqual(game.videoExpiresAt, processedAt.addingTimeInterval(7 * 24 * 60 * 60))
     }
 
     func testKeptVideoNeverExpires() {
         let game = makeGame()
-        game.processedAt = .now
+        game.firstPart.processedAt = .now
         game.keepsVideo = true
         XCTAssertNil(game.videoExpiresAt)
     }
 
     func testDeletedVideoHasNoExpiry() {
         let game = makeGame()
-        game.processedAt = .now
-        game.isVideoAvailable = false
+        game.firstPart.processedAt = .now
+        game.firstPart.isVideoAvailable = false
         XCTAssertNil(game.videoExpiresAt)
     }
 }

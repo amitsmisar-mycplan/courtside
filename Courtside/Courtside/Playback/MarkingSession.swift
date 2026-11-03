@@ -3,7 +3,8 @@ import OSLog
 import QuartzCore
 import SwiftData
 
-/// Plays a game full-screen and turns taps into `Mark` rows.
+/// Plays one part of a game full-screen and turns taps into `Mark` rows on that part. Ticks, the mark
+/// count, Undo and the 2-second guard are all this part's (decision 0022).
 @MainActor @Observable
 final class MarkingSession {
     static let debounceInterval: CFTimeInterval = 2
@@ -17,6 +18,7 @@ final class MarkingSession {
     }
 
     let game: Game
+    let part: GamePart
     @ObservationIgnored let player: AVPlayer
     @ObservationIgnored private let context: ModelContext
     @ObservationIgnored private let clock: () -> CFTimeInterval
@@ -35,18 +37,25 @@ final class MarkingSession {
     @ObservationIgnored private var statusObservation: NSKeyValueObservation?
     @ObservationIgnored private var itemStatusObservation: NSKeyValueObservation?
 
-    var duration: Double { game.durationSeconds }
-    var markCount: Int { game.marks.count }
+    var duration: Double { part.durationSeconds }
+    var markCount: Int { partMarks.count }
     var canUndo: Bool { undo.canUndo }
     var ticks: [Tick] {
-        game.marks.map { Tick(id: $0.id, offset: $0.offsetSeconds) }
+        partMarks.map { Tick(id: $0.id, offset: $0.offsetSeconds) }
     }
 
-    init(game: Game, context: ModelContext, clock: @escaping () -> CFTimeInterval = CACurrentMediaTime) {
+    private var partMarks: [Mark] {
+        game.marks.filter { $0.resolvedPart === part }
+    }
+
+    /// `part` defaults to Part 1, for a game with one video.
+    init(game: Game, part: GamePart? = nil, context: ModelContext, clock: @escaping () -> CFTimeInterval = CACurrentMediaTime) {
         self.game = game
+        // Every game has a Part 1 (decision 0022); the fallback only satisfies the type.
+        self.part = part ?? game.orderedParts.first ?? GamePart(index: 0, videoFilename: "", durationSeconds: 0, videoFileSize: 0, recordedAt: .now)
         self.context = context
         self.clock = clock
-        self.player = AVPlayer(url: StorageManager.gameVideoURL(for: game))
+        self.player = AVPlayer(url: StorageManager.videoURL(for: self.part))
         player.defaultRate = 1
 
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
@@ -93,6 +102,7 @@ final class MarkingSession {
         let mark = Mark(offsetSeconds: offset)
         context.insert(mark)
         mark.game = game
+        mark.part = part
         game.isProcessed = false
         try? context.save()
 

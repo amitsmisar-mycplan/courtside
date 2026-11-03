@@ -19,7 +19,8 @@ struct ClipPlayerView: View {
         case slowMo
     }
 
-    private var canTrim: Bool { clip.game?.isVideoAvailable == true }
+    /// Trim re-cuts from the clip's own part (decision 0022).
+    private var canTrim: Bool { clip.resolvedPart?.isVideoAvailable == true }
 
     /// The file being played, shared, and described: the slow-mo render when selected.
     private var currentURL: URL {
@@ -152,8 +153,10 @@ struct ClipPlayerView: View {
         .buttonStyle(.bordered)
         .controlSize(.large)
         .disabled(!canTrim)
-        if clip.game?.isVideoAvailable != true {
-            Text("The full game video was deleted, so this clip can't be trimmed.")
+        if !canTrim {
+            Text(clip.game?.hasSeveralParts == true
+                 ? "This part's video was deleted, so this clip can't be trimmed."
+                 : "The full game video was deleted, so this clip can't be trimmed.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -176,6 +179,11 @@ struct ClipPlayerView: View {
             let output = SlowMotion.outputDuration(clipDuration: clip.window.duration, segment: slowMo.segment, speed: slowMo.speed)
             return String(format: "Slow Mo %@ · plays %.0f sec · %@", slowMo.speed.label, output, Format.bytes(clip.slowMoFileSize ?? 0))
         }
-        return "\(Format.duration(clip.startSeconds)) – \(Format.duration(clip.endSeconds)) · \(Int(clip.window.duration.rounded())) sec"
+        let times = "\(Format.duration(clip.startSeconds)) – \(Format.duration(clip.endSeconds)) · \(Int(clip.window.duration.rounded())) sec"
+        // The part only matters when there's more than one (decision 0022).
+        if clip.game?.hasSeveralParts == true, let part = clip.resolvedPart {
+            return "\(part.title) · \(times)"
+        }
+        return times
     }
 }

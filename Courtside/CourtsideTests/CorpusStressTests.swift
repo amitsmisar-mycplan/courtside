@@ -67,7 +67,7 @@ final class CorpusStressTests: XCTestCase {
     private func run(source: URL, index: Int, markCount: Int, trimmedClips: Int, memory: MemorySampler, into result: inout VideoResult) async {
         let container: ModelContainer
         do {
-            container = try ModelContainer(for: Game.self, Mark.self, Clip.self,
+            container = try ModelContainer(for: Game.self, GamePart.self, Mark.self, Clip.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         } catch {
             result.fail("setup", "model container: \(error)")
@@ -125,7 +125,7 @@ final class CorpusStressTests: XCTestCase {
         result.importedCreatedAt = imported.createdAt.map { ISO8601DateFormatter().string(from: $0) }
 
         // The import screen creates the game this way (ImportFlowView); repeated here because it lives in a view.
-        let newGame = Game(id: imported.gameID, label: "", recordedAt: imported.createdAt ?? .now,
+        let newGame = Game(id: imported.videoID, label: "", recordedAt: imported.createdAt ?? .now,
                            videoFilename: imported.filename, durationSeconds: imported.durationSeconds,
                            source: .imported, videoFileSize: imported.fileSize)
         context.insert(newGame)
@@ -310,7 +310,8 @@ final class CorpusStressTests: XCTestCase {
         let oldDuration = clip.window.duration
 
         // Trim: pull both ends out 5 s, as far as the limits allow.
-        let bounds = ClipWindow.trimBounds(mark: mark, gameDuration: game.durationSeconds, current: clip.window)
+        // Bounded by the clip's own part (decision 0022).
+        let bounds = ClipWindow.trimBounds(mark: mark, gameDuration: clip.resolvedPart?.durationSeconds ?? game.durationSeconds, current: clip.window)
         let wider = clip.window.trimming(.start, to: clip.startSeconds - 5, within: bounds)
             .trimming(.end, to: clip.endSeconds + 5, within: bounds)
         var trim = OperationResult(clip: label)
@@ -367,7 +368,7 @@ final class CorpusStressTests: XCTestCase {
     /// Every file this run added must belong to a live record.
     private func checkOrphans(game: Game, before: FileSnapshot, into result: inout VideoResult) {
         let live = Set(game.clips.flatMap { [$0.filename] + ($0.slowMoFilename.map { [$0] } ?? []) })
-            .union([game.videoFilename])
+            .union(game.parts.map(\.videoFilename))
             .union(game.clips.map { StorageManager.thumbnailURL(forClipID: $0.id).lastPathComponent })
         let orphans = FileSnapshot.take().added(since: before).filter { !live.contains($0.lastPathComponent) }
         result.orphans = orphans.map(\.lastPathComponent)

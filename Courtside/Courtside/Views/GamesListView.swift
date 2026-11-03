@@ -95,7 +95,7 @@ struct GamesListView: View {
                 StorageManager.deleteGame(game, in: modelContext)
             }
         } message: { game in
-            Text("\(game.displayTitle) will be removed from Courtside along with its video, marks and clips. This frees \(Format.bytes(game.storageBytes)).")
+            Text("\(game.displayTitle) will be removed from Courtside along with \(game.hasSeveralParts ? "its videos" : "its video"), marks and clips. This frees \(Format.bytes(game.storageBytes)).")
         }
         .alert("Couldn't open file", isPresented: Binding(get: { pickerError != nil }, set: { if !$0 { pickerError = nil } })) {
             Button("OK", role: .cancel) {}
