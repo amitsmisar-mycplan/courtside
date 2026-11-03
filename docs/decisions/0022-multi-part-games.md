@@ -1,7 +1,7 @@
 # 0022 — Games with more than one video ("parts")
 
-**Status:** Proposed · 2026-11-03 (founder's "multi-part games" brief). Plan only; nothing is built until the founder
-says "go". Changes the retention rules of [0004](0004-video-retention-and-nudge.md) for games with more than one video.
+**Status:** Proposed · 2026-11-03 (founder's "multi-part games" brief). Plan and open questions agreed 2026-11-03;
+built once the founder says "go". Changes the retention rules of [0004](0004-video-retention-and-nudge.md) for games with more than one video.
 
 ## Data model
 New `GamePart` model, owned by `Game` (cascade delete):
@@ -93,6 +93,17 @@ before the backfill still plays the right video.
    Deleting one part's video is not built.
 6. **A clip never crosses a part boundary;** windows and trim bounds are clamped to the part (founder's answer).
 7. **Mark More Plays with one part** opens that part directly. With several, the parent picks a part in the list.
+
+### Confirmed by the founder (2026-11-03)
+The plan and rules 1–7 above are agreed, plus:
+8. **Part order is the order added.** A video added second is Part 2 even if it was filmed earlier; there is no reordering.
+9. **The game keeps Part 1's date.** Adding a part doesn't change `Game.recordedAt`.
+10. **Several parts: the Parts list replaces "Mark More Plays".** Tap a part to mark it. A one-part game keeps the button.
+11. **The same video may be added twice,** with no warning (catching it would mean comparing files).
+12. **"Part 2" shows in the clip player's details,** for multi-part games only. It's never burned into exported or
+    shared videos, which keep the game label of [0019](0019-game-labels.md).
+13. **An Add Video cut off by a crash** comes back as its own "Recovered" game (merging games is not built).
+14. **The one-time store backup stays** until a later decision removes the legacy fields.
 
 ## Riskiest points for losing footage
 | Risk | How the design avoids it |
