@@ -81,6 +81,12 @@ videos at 1920 on the long side with the HEVC 1080p preset; smaller videos keep 
 behavior. Existing clips aren't remade ([0023](../decisions/0023-clip-quality.md)). Built on `feature/clip-quality`;
 timed on real footage in the "Courtside Tests" Simulator.
 
+**Feature: Vertical zoom and aim** — saving a landscape clip as Vertical now shows a still with the 9:16 window over it:
+drag to aim, zoom from 0 % (the old fit-width layout) to 100 % (fills the frame), default 60 % then the last zoom used,
+capped where the video would be stretched past 1.5× ("Zoom limited by video quality"). Same export pipeline; label
+placement unchanged; labelled copies cached per zoom and aim ([0024](../decisions/0024-vertical-zoom.md)). Built on
+`feature/vertical-zoom`; Simulator-verified on "Courtside Tests".
+
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).
