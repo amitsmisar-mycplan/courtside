@@ -304,3 +304,31 @@ a 1080p clip keeps a 1920×1080 canvas; the default is 1080p.
 Settings UI (app built and installed on "Courtside Tests"): "Clip quality" sits in its own section under Clip length, shows
 "1080p (faster)" by default, and its menu offers "1080p (faster)" (checked) and "Full quality", with the footer "For new
 clips and trims. 1080p is several times faster to make from 4K game videos. Clips you already have stay as they are."
+
+## Vertical zoom — 2026-11-03, "Courtside Tests" Simulator (iPhone 17 Pro, iOS 27)
+
+Unit and export tests (`VerticalZoomTests`, 17): zoom limits from the 1.5× cap (4K 100 %, 1920×1080 77 %, 1280×720 36 %,
+320×180 none); zoom 0 matches the old layout exactly and zoom 1 fills the frame; window centered by default, 9:16, full
+height at 100 %, wider than the video at 0 %; aim clamped inside the video, no up/down room within the slider's range;
+portrait and square clips not framed; Share's plan stays Original; last zoom defaults to 60 % and is remembered after a
+save; the sheet asks for framing only for landscape clips and shows the limit note at the cap; cached labelled copies
+keyed by zoom and aim (same look reuses, a new zoom replaces). Exported frames from banded 4K and 1080p test videos at
+zoom 0, 60 % and 100 % (1080p held to 77 %), plus 100 % aimed full left: every output is 1080×1920 and each column shows
+the band the window math predicts; at 100 % the top and bottom rows are video, not blur; the label box stays inside the
+lower-left safe area (≥ 5 % from the left, ends by 76 % across, between 20 % and 50 % up) and darkens what's under it at
+every zoom; a portrait source gives the same frame with or without framing; a slow-mo render can be framed.
+
+Export cost (`VerticalZoomTimingTests`, real footage, labelled Vertical save of a 13 s clip, seconds): 4K old layout 58.4,
+zoom 0 % 64.9, 60 % 70.6, 100 % 74.1; 1080p old layout 58.0, 0 % 58.8, 60 % 70.6, 100 % (held to 77 %) 74.0. Outputs
+1080×1920, 16–19 MB. See [0024](../decisions/0024-vertical-zoom.md#export-cost).
+
+In the app (built and installed on "Courtside Tests"; game "vs Lakers", the 5 s 4K Part 1 clip): Save to Photos →
+Vertical opens the full-height sheet with the still and the 9:16 window, "Zoom 60%" by default, centered. Dragged to 0 %
+(window spans the width, hint "Blurred background above and below the video") and to 100 % (window full height, hint
+"The sides outside the frame are cropped"), then dragged the window right. The zoom used last is the next default
+(60 %, then 0 %, then 100 %). Saved at each; frames read back from the saved videos: 1080×1920 each; 60 % fills most of
+the height with thin blur bands, 0 % is the old strip with the label in the blur below, 100 % fills the frame aimed
+right with the label over the video. Photos add-only access was granted on this Simulator for the test (founder's
+answer). Not seen in the UI: the "Zoom limited by video quality" note, since this Simulator has no landscape clip under
+4K; it's covered by the session test. The three saved videos are left in that Simulator's Photos.
+

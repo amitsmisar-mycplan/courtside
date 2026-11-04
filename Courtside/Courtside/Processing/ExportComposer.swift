@@ -32,10 +32,21 @@ enum ExportComposer {
         let canvas: CGSize = plan.format == .vertical
             ? ExportFormat.verticalRenderSize
             : ExportPlan.cappedSize(videoSize, maxLongSide: plan.maxLongSide)
-        let foreground = plan.format == .vertical
-            ? VerticalLayout.foreground(videoSize: videoSize, canvas: canvas)
-            : CGRect(origin: .zero, size: canvas)
-        let background: CGRect? = plan.format == .vertical && foreground.size != canvas
+        let foreground: CGRect
+        if plan.format == .vertical {
+            // Zoomed and aimed for landscape clips; portrait clips (and zoom 0) as before.
+            if let framing = plan.verticalFraming, VerticalFraming.applies(to: videoSize) {
+                foreground = framing.foreground(videoSize: videoSize, canvas: canvas)
+            } else {
+                foreground = VerticalLayout.foreground(videoSize: videoSize, canvas: canvas)
+            }
+        } else {
+            foreground = CGRect(origin: .zero, size: canvas)
+        }
+        // The blur fills whatever the video leaves uncovered; a frame the video fills skips it.
+        let covers = foreground.minX <= 0.5 && foreground.minY <= 0.5
+            && foreground.maxX >= canvas.width - 0.5 && foreground.maxY >= canvas.height - 0.5
+        let background: CGRect? = plan.format == .vertical && !covers
             ? VerticalLayout.background(videoSize: videoSize, canvas: canvas)
             : nil
         // Steps are timed by the exported file's own length: a trimmed or slow-mo clip gets its

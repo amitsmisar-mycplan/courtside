@@ -27,3 +27,4 @@ One file per decision that deviates from or extends the spec. Add new ones with 
 | [0021](0021-faster-label-export.md) | Labelled exports at 1080p by default (HEVC 1080p preset), cached while the app runs | Accepted |
 | [0022](0022-multi-part-games.md) | Games with more than one video (parts): model, migration, per-part retention | Accepted |
 | [0023](0023-clip-quality.md) | Clips and trims at 1080p by default ("Clip quality"); Full quality keeps the old behavior | Accepted |
+| [0024](0024-vertical-zoom.md) | Zoom and aim for Vertical exports of landscape clips, capped at 1.5× upscale | Accepted |

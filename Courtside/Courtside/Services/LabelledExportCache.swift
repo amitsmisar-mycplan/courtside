@@ -4,8 +4,8 @@ import Foundation
 /// clip again is instant (decision 0021). The files live in the temporary exports folder:
 /// `StorageManager` removes them when their clip or game is deleted, and at the next launch.
 ///
-/// A copy is reused only for the same clip, source file (unchanged since), format, label text
-/// and quality. Anything else replaces it, and the old file is removed.
+/// A copy is reused only for the same clip, source file (unchanged since), format, label text,
+/// quality and Vertical zoom and aim (decision 0024). Anything else replaces it, and the old file is removed.
 @MainActor
 final class LabelledExportCache {
     static let shared = LabelledExportCache()
@@ -19,6 +19,20 @@ final class LabelledExportCache {
         let format: ExportFormat
         let label: LabelStep.LabelText
         let quality: LabelledExportQuality
+        /// Vertical zoom and aim, rounded so the same look reuses its copy; nil for Original and zoom 0 layouts.
+        let framing: VerticalFraming?
+
+        init(
+            clipID: UUID, source: SourceStamp, format: ExportFormat, label: LabelStep.LabelText,
+            quality: LabelledExportQuality, framing: VerticalFraming? = nil
+        ) {
+            self.clipID = clipID
+            self.source = source
+            self.format = format
+            self.label = label
+            self.quality = quality
+            self.framing = framing?.rounded
+        }
 
         /// One copy per clip, source file and format; a new key for the same slot replaces it.
         var slot: Slot { Slot(clipID: clipID, sourceName: source.name, format: format) }
