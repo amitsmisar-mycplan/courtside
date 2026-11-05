@@ -48,42 +48,23 @@ private struct TrimEditor: View {
     let session: TrimSession
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                if let reason = session.unavailableReason {
+        Group {
+            if let reason = session.unavailableReason {
+                ScrollView {
                     ContentUnavailableView {
                         Label("Can't trim this clip", systemImage: "scissors")
                     } description: {
                         Text(reason)
                     }
-                } else {
+                    .padding()
+                }
+            } else {
+                VideoFirstLayout(minVideoHeight: 160) {
                     preview
-                    VStack(alignment: .leading, spacing: 8) {
-                        TrimBar(session: session)
-                        HStack {
-                            Text("\(Format.duration(session.window.start)) – \(Format.duration(session.window.end))")
-                            Spacer()
-                            Text(String(format: "%.1f sec", session.window.duration))
-                                .font(.headline)
-                        }
-                        .monospacedDigit()
-                        .font(.subheadline)
-                        Text(offsetsText)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                    Button("Reset to Default (10 s before, 3 s after)", systemImage: "arrow.counterclockwise") {
-                        session.resetToDefault()
-                    }
-                    .disabled(session.isDefault || session.isSaving)
-                    if session.clip.hasSlowMo {
-                        Label("Saving a new range removes the slow-mo version; you can make it again after.", systemImage: "tortoise")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
+                } controls: {
+                    controls
                 }
             }
-            .padding()
         }
         .overlay {
             if session.isSaving {
@@ -106,10 +87,68 @@ private struct TrimEditor: View {
         }
     }
 
+    /// Tight spacing so the preview gets most of the screen; the handles keep their size. Reset
+    /// sits on the time row when it fits, else on its own row below the offsets.
+    private var controls: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            TrimBar(session: session)
+            ViewThatFits(in: .horizontal) {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 8) {
+                        range
+                        duration
+                        Spacer(minLength: 8)
+                        resetButton
+                    }
+                    offsets
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        range
+                        Spacer()
+                        duration
+                    }
+                    offsets
+                    resetButton
+                }
+            }
+            if session.clip.hasSlowMo {
+                Label("Saving a new range removes the slow-mo version; you can make it again after.", systemImage: "tortoise")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var range: some View {
+        Text("\(Format.duration(session.window.start)) – \(Format.duration(session.window.end))")
+            .font(.subheadline)
+            .monospacedDigit()
+    }
+
+    private var duration: some View {
+        Text(String(format: "%.1f sec", session.window.duration))
+            .font(.headline)
+            .monospacedDigit()
+    }
+
+    private var offsets: some View {
+        Text(offsetsText)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+    }
+
+    private var resetButton: some View {
+        Button("Reset to Default", systemImage: "arrow.counterclockwise") {
+            session.resetToDefault()
+        }
+        .frame(minHeight: 44)
+        .disabled(session.isDefault || session.isSaving)
+        .accessibilityHint("Sets the clip back to 10 seconds before the tap and 3 seconds after.")
+    }
+
     private var preview: some View {
         PlayerSurface(player: session.player)
-            .aspectRatio(session.aspectRatio ?? 16 / 9, contentMode: .fit)
-            .frame(maxWidth: .infinity, maxHeight: 320)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay {
                 if !session.isPlaying {

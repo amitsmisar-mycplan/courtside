@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-11-03_
+_Last updated: 2026-11-05_
 
 | Step | What | Status |
 |---|---|---|
@@ -86,6 +86,12 @@ drag to aim, zoom from 0 % (the old fit-width layout) to 100 % (fills the frame)
 capped where the video would be stretched past 1.5× ("Zoom limited by video quality"). Same export pipeline; label
 placement unchanged; labelled copies cached per zoom and aim ([0024](../decisions/0024-vertical-zoom.md)). Built on
 `feature/vertical-zoom`; Simulator-verified on "Courtside Tests".
+
+**Feature: bigger video** — the Clip and Trim screens give the video all the height the controls leave: 78 % on an
+iPhone 17 Pro, 72–73 % on an iPhone SE (was about 29 %). Clip controls in two rows (Trim + Slow Mo; Save to Photos with
+Share and Delete as tiles), falling back to more rows on small screens or large text; Trim spacing tightened, Reset on
+the time row ([0025](../decisions/0025-bigger-video.md)). Layout only. Built on `feature/bigger-video`; Simulator-verified
+on "Courtside Tests" and "Courtside Tests SE".
 
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 

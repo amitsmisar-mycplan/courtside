@@ -29,73 +29,17 @@ struct ClipPlayerView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                PlayerSurface(player: looper.player)
-                    .aspectRatio(16 / 9, contentMode: .fit)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay {
-                        if looper.playbackFailed {
-                            PlaybackFailedNotice(subject: "clip")
-                                .padding(12)
-                        }
+        VideoFirstLayout {
+            PlayerSurface(player: looper.player)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay {
+                    if looper.playbackFailed {
+                        PlaybackFailedNotice(subject: "clip")
+                            .padding(12)
                     }
-
-                if clip.hasSlowMo {
-                    Picker("Version", selection: $version) {
-                        Text("Original").tag(Version.original)
-                        Text("Slow Mo").tag(Version.slowMo)
-                    }
-                    .pickerStyle(.segmented)
                 }
-
-                Text(details)
-                    .font(.subheadline)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-
-                trimControl
-
-                Button {
-                    showSlowMo = true
-                } label: {
-                    Label(clip.hasSlowMo ? "Change Slow Mo" : "Slow Mo", systemImage: "tortoise")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-
-                Button {
-                    looper.pause()
-                    exportSession = ClipExportSession(
-                        clipID: clip.id, source: currentURL, label: .forExport(game: clip.game)
-                    )
-                } label: {
-                    Label(version == .slowMo ? "Save Slow Mo to Photos" : "Save to Photos", systemImage: "square.and.arrow.down")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-
-                HStack(spacing: 12) {
-                    Button {
-                        share()
-                    } label: {
-                        Label("Share", systemImage: "square.and.arrow.up")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    Button(role: .destructive) {
-                        confirmDelete = true
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                }
-                .controlSize(.large)
-            }
-            .padding()
+        } controls: {
+            controls
         }
         .navigationTitle("Clip")
         .navigationBarTitleDisplayMode(.inline)
@@ -140,9 +84,76 @@ struct ClipPlayerView: View {
         }
     }
 
-    /// Opens the trim editor, or says why it can't.
-    @ViewBuilder
-    private var trimControl: some View {
+    /// Compact so the video gets most of the screen: Trim and Slow Mo side by side, then Save to
+    /// Photos with Share and Delete beside it when they fit, else under it.
+    private var controls: some View {
+        VStack(spacing: 8) {
+            Text(details)
+                .font(.subheadline)
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            if clip.hasSlowMo {
+                Picker("Version", selection: $version) {
+                    Text("Original").tag(Version.original)
+                    Text("Slow Mo").tag(Version.slowMo)
+                }
+                .pickerStyle(.segmented)
+            }
+
+            // Side by side when the labels fit on one line (very large text stacks them).
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    trimButton
+                    slowMoButton
+                }
+                VStack(spacing: 8) {
+                    trimButton
+                    slowMoButton
+                }
+            }
+            if !canTrim {
+                Text(clip.game?.hasSeveralParts == true
+                     ? "This part's video was deleted, so this clip can't be trimmed."
+                     : "The full game video was deleted, so this clip can't be trimmed.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            // One row when it fits (Share and Delete as narrow tiles), else Save on its own row
+            // above Share and Delete, else (very large text) all three stacked.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    saveButton
+                        .frame(maxHeight: .infinity)
+                    Group {
+                        shareButton(compact: true)
+                        deleteButton(compact: true)
+                    }
+                    // Less padding, so the two-line tiles are no taller than Save beside them.
+                    .controlSize(.small)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                VStack(spacing: 8) {
+                    saveButton
+                    HStack(spacing: 8) {
+                        shareButton(compact: false)
+                        deleteButton(compact: false)
+                    }
+                }
+                VStack(spacing: 8) {
+                    saveButton
+                    shareButton(compact: false)
+                    deleteButton(compact: false)
+                }
+            }
+        }
+        .controlSize(.large)
+    }
+
+    private var trimButton: some View {
         Button {
             looper.pause()
             showTrim = true
@@ -151,15 +162,49 @@ struct ClipPlayerView: View {
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(.bordered)
-        .controlSize(.large)
         .disabled(!canTrim)
-        if !canTrim {
-            Text(clip.game?.hasSeveralParts == true
-                 ? "This part's video was deleted, so this clip can't be trimmed."
-                 : "The full game video was deleted, so this clip can't be trimmed.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+    }
+
+    private var slowMoButton: some View {
+        Button {
+            showSlowMo = true
+        } label: {
+            Label(clip.hasSlowMo ? "Change Slow Mo" : "Slow Mo", systemImage: "tortoise")
+                .frame(maxWidth: .infinity)
         }
+        .buttonStyle(.bordered)
+    }
+
+    private var saveButton: some View {
+        Button {
+            looper.pause()
+            exportSession = ClipExportSession(
+                clipID: clip.id, source: currentURL, label: .forExport(game: clip.game)
+            )
+        } label: {
+            Label(version == .slowMo ? "Save Slow Mo to Photos" : "Save to Photos", systemImage: "square.and.arrow.down")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .layoutPriority(1)
+    }
+
+    private func shareButton(compact: Bool) -> some View {
+        Button {
+            share()
+        } label: {
+            ActionLabel(title: "Share", systemImage: "square.and.arrow.up", compact: compact)
+        }
+        .buttonStyle(.bordered)
+    }
+
+    private func deleteButton(compact: Bool) -> some View {
+        Button(role: .destructive) {
+            confirmDelete = true
+        } label: {
+            ActionLabel(title: "Delete", systemImage: "trash", compact: compact)
+        }
+        .buttonStyle(.bordered)
     }
 
     /// With the game label on, a labelled copy is made first (progress sheet) unless one is already
@@ -185,5 +230,29 @@ struct ClipPlayerView: View {
             return "\(part.title) · \(times)"
         }
         return times
+    }
+}
+
+/// A button label: icon beside the title, or, compact, the icon above a small title so the
+/// button fits beside a wide one.
+private struct ActionLabel: View {
+    let title: String
+    let systemImage: String
+    let compact: Bool
+
+    var body: some View {
+        if compact {
+            VStack(spacing: 2) {
+                Image(systemName: systemImage)
+                    .font(.body)
+                Text(title)
+                    .font(.caption)
+            }
+            .lineLimit(1)
+            .frame(minWidth: 52, maxHeight: .infinity)
+        } else {
+            Label(title, systemImage: systemImage)
+                .frame(maxWidth: .infinity)
+        }
     }
 }
