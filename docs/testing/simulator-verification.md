@@ -332,3 +332,31 @@ right with the label over the video. Photos add-only access was granted on this 
 answer). Not seen in the UI: the "Zoom limited by video quality" note, since this Simulator has no landscape clip under
 4K; it's covered by the session test. The three saved videos are left in that Simulator's Photos.
 
+## Bigger video — 2026-11-05, "Courtside Tests" (iPhone 17 Pro) and "Courtside Tests SE" (iPhone SE 3rd gen), iOS 27
+
+"Courtside Tests SE" is a second test-only Simulator made for this check (small screen). Clips used: a landscape 4K clip
+("vs Lakers", Part 1) and clips cut from the synthetic `game-30fps-portrait.mov` and `game-60fps-landscape.mov`
+(imported from that Simulator's Photos). Video box measured from screenshots, as a share of the height between the
+navigation bar and the bottom safe area, default text size:
+
+| Screen | iPhone 17 Pro | iPhone SE |
+|---|---|---|
+| Clip | 562 / 724 pt = 78 % (portrait and landscape) | 430 / 593 pt = 72 % |
+| Trim | 553 / 708 pt = 78 % | 422 / 577 pt = 73 % |
+
+No scrolling at default text on either phone; every control on screen. Clip: info line directly under the video; Trim and
+Slow Mo side by side; Save to Photos with Share and Delete tiles in one row (on both phones). Trim: filmstrip and handles
+unchanged, start handle dragged (13.0 → 17.0 s, Save and Reset enabled), Reset put back 10.0 s / 3.0 s, Cancel saved
+nothing; Reset on the time row on both phones. Largest accessibility text size (SE): video held at its minimum, buttons
+stacked one per row with full labels, page scrolls; Trim's time row and Reset stack below the filmstrip and scroll. The
+SE was set back to the default text size afterwards.
+
+Not seen: a clip with a slow-mo version (picker shown) and the "Save Slow Mo to Photos" label in the new row; the
+landscape phone orientation.
+
+Orientation check (metadata only, no change): the sideways court in the founder's clips comes from the recording, not the
+app. Three Samsung files (20261007_165457, 20261007_165634, 20261031_144105) are 3840×2160 with a 90° rotation flag, so
+every player shows them as 2160×3840 portrait; 20261031_144105 is a landscape shot of the court flagged as portrait, so it
+plays sideways in Photos and QuickTime too. The app applies each video's rotation flag as recorded and its clips keep the
+source's flag. The DJI files (1080×1920 with a −90° flag) correctly show as 1920×1080 landscape.
+
