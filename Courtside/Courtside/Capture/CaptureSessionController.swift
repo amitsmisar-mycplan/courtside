@@ -19,12 +19,18 @@ final class CaptureSessionController: NSObject, RecordingService, CameraPreviewS
     private let lock = NSLock()
 
     private var videoDevice: AVCaptureDevice?
+    private var videoInput: AVCaptureDeviceInput?
     private var configured = false
+    /// Bumped on every lens switch, so a focus lock scheduled for the old lens is skipped.
+    private var settleGeneration = 0
 
     // Guarded by `lock`.
     private var startedAt: CFTimeInterval?
     private var startContinuation: CheckedContinuation<URL, Error>?
     private var stopContinuation: CheckedContinuation<(url: URL, duration: Double), Error>?
+    private var currentLens: CameraLens?
+    private var currentDevice: AVCaptureDevice?
+    private var foundLenses: [CameraLens] = []
 
     // Main thread only.
     private var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
@@ -33,10 +39,40 @@ final class CaptureSessionController: NSObject, RecordingService, CameraPreviewS
 
     var onUnexpectedFinish: (@MainActor (URL, Double) -> Void)?
 
+    var lens: CameraLens? { lock.withLock { currentLens } }
+    var availableLenses: [CameraLens] { lock.withLock { foundLenses } }
+
+    // MARK: Lenses
+
+    /// Lenses for the back cameras found, widest first. Separate from discovery so it can be tested
+    /// without a camera.
+    static func lenses(forDeviceTypes types: [AVCaptureDevice.DeviceType]) -> [CameraLens] {
+        CameraLens.allCases.filter { types.contains(deviceType(for: $0)) }
+    }
+
+    static func deviceType(for lens: CameraLens) -> AVCaptureDevice.DeviceType {
+        switch lens {
+        case .ultraWide: .builtInUltraWideCamera
+        case .wide: .builtInWideAngleCamera
+        }
+    }
+
+    private static func backCamera(for lens: CameraLens) -> AVCaptureDevice? {
+        AVCaptureDevice.default(deviceType(for: lens), for: .video, position: .back)
+    }
+
+    private static func discoverLenses() -> [CameraLens] {
+        let discovery = AVCaptureDevice.DiscoverySession(
+            deviceTypes: CameraLens.allCases.map(deviceType(for:)), mediaType: .video, position: .back
+        )
+        return lenses(forDeviceTypes: discovery.devices.map(\.deviceType))
+    }
+
     // MARK: Set-up
 
-    func prepare() async throws {
-        guard AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) != nil else {
+    func prepare(preferredLens: CameraLens?) async throws {
+        let found = Self.discoverLenses()
+        guard let chosen = LensSettings.choose(saved: preferredLens, available: found) else {
             throw RecordingError.noCamera
         }
         guard await AVCaptureDevice.requestAccess(for: .video) else { throw RecordingError.cameraDenied }
@@ -46,8 +82,9 @@ final class CaptureSessionController: NSObject, RecordingService, CameraPreviewS
             sessionQueue.async {
                 do {
                     if !self.configured {
-                        try self.configure()
+                        try self.configure(lens: chosen)
                         self.configured = true
+                        self.lock.withLock { self.foundLenses = found }
                     }
                     if !self.session.isRunning { self.session.startRunning() }
                     self.lockFocusAfterSettle()
@@ -59,19 +96,15 @@ final class CaptureSessionController: NSObject, RecordingService, CameraPreviewS
         }
     }
 
-    /// 1920×1080, 60 fps if the camera can, HEVC, back wide camera at 1×, audio on,
-    /// stabilization off (tripod-mounted; stabilization only costs thermal headroom).
-    private func configure() throws {
+    /// 1920×1080, 60 fps if the lens can, HEVC, the chosen back lens at its own 1× (so the ultra-wide
+    /// stays 0.5×), audio on, stabilization off (tripod-mounted; stabilization only costs thermal
+    /// headroom). Geometric distortion correction is left at the system default.
+    private func configure(lens: CameraLens) throws {
         session.beginConfiguration()
         defer { session.commitConfiguration() }
         session.sessionPreset = .inputPriority
 
-        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else {
-            throw RecordingError.noCamera
-        }
-        let videoInput = try AVCaptureDeviceInput(device: device)
-        guard session.canAddInput(videoInput) else { throw RecordingError.configurationFailed("camera input") }
-        session.addInput(videoInput)
+        try addVideoInput(for: lens)
 
         if let microphone = AVCaptureDevice.default(for: .audio),
            let audioInput = try? AVCaptureDeviceInput(device: microphone),
@@ -86,28 +119,92 @@ final class CaptureSessionController: NSObject, RecordingService, CameraPreviewS
         // Must stay invalid, or long games silently truncate.
         movieOutput.maxRecordedDuration = .invalid
 
+        applyRecordingSettings()
+    }
+
+    /// Adds the camera for `lens` and sets its format. Call inside a configuration block.
+    private func addVideoInput(for lens: CameraLens) throws {
+        guard let device = Self.backCamera(for: lens) else { throw RecordingError.noCamera }
+        let input = try AVCaptureDeviceInput(device: device)
+        guard session.canAddInput(input) else { throw RecordingError.configurationFailed("camera input") }
+        session.addInput(input)
+        try configureFormat(of: device, lens: lens)
+        videoInput = input
+        videoDevice = device
+        lock.withLock {
+            currentLens = lens
+            currentDevice = device
+        }
+    }
+
+    private func configureFormat(of device: AVCaptureDevice, lens: CameraLens) throws {
         try device.lockForConfiguration()
         if let best = Self.bestFormat(for: device) {
             device.activeFormat = best.format
             let frameDuration = CMTime(value: 1, timescale: best.fps)
             device.activeVideoMinFrameDuration = frameDuration
             device.activeVideoMaxFrameDuration = frameDuration
-            Self.log.info("Recording format 1920x1080 @ \(best.fps) fps")
+            Self.log.info("Recording format 1920x1080 @ \(best.fps) fps on the \(lens.label) lens")
+        } else {
+            Self.log.error("No 1080p format on the \(lens.label) lens; using the camera's default")
         }
         device.videoZoomFactor = 1.0
         if device.isFocusModeSupported(.continuousAutoFocus) { device.focusMode = .continuousAutoFocus }
         if device.isExposureModeSupported(.continuousAutoExposure) { device.exposureMode = .continuousAutoExposure }
         device.unlockForConfiguration()
+    }
 
-        if let connection = movieOutput.connection(with: .video) {
-            if movieOutput.availableVideoCodecTypes.contains(.hevc) {
-                movieOutput.setOutputSettings([AVVideoCodecKey: AVVideoCodecType.hevc], for: connection)
-            }
-            if connection.isVideoStabilizationSupported {
-                connection.preferredVideoStabilizationMode = .off
+    /// HEVC and no stabilization on the movie output's video connection, which is rebuilt when the
+    /// camera input changes.
+    private func applyRecordingSettings() {
+        guard let connection = movieOutput.connection(with: .video) else { return }
+        if movieOutput.availableVideoCodecTypes.contains(.hevc) {
+            movieOutput.setOutputSettings([AVVideoCodecKey: AVVideoCodecType.hevc], for: connection)
+        }
+        if connection.isVideoStabilizationSupported {
+            connection.preferredVideoStabilizationMode = .off
+        }
+    }
+
+    func selectLens(_ lens: CameraLens) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            sessionQueue.async {
+                do {
+                    try self.switchLens(to: lens)
+                    continuation.resume()
+                } catch {
+                    continuation.resume(throwing: error)
+                }
             }
         }
-        videoDevice = device
+        await MainActor.run { observeRotation() }
+    }
+
+    /// Swaps the camera input. Never while recording; on failure the previous lens is put back.
+    private func switchLens(to lens: CameraLens) throws {
+        guard !movieOutput.isRecording else { throw RecordingError.lensLocked }
+        guard configured, lens != self.lens else { return }
+        guard let oldInput = videoInput, let oldLens = self.lens else { throw RecordingError.noCamera }
+
+        session.beginConfiguration()
+        defer { session.commitConfiguration() }
+        session.removeInput(oldInput)
+        do {
+            try addVideoInput(for: lens)
+        } catch {
+            if session.canAddInput(oldInput) { session.addInput(oldInput) }
+            videoInput = oldInput
+            videoDevice = oldInput.device
+            lock.withLock {
+                currentLens = oldLens
+                currentDevice = oldInput.device
+            }
+            applyRecordingSettings()
+            throw error
+        }
+        applyRecordingSettings()
+        settleGeneration += 1
+        lockFocusAfterSettle()
     }
 
     /// 1080p at 60 fps, falling back to 1080p at 30 fps.
@@ -127,8 +224,10 @@ final class CaptureSessionController: NSObject, RecordingService, CameraPreviewS
     // MARK: Focus
 
     private func lockFocusAfterSettle() {
+        let generation = settleGeneration
         sessionQueue.asyncAfter(deadline: .now() + Self.settleSeconds) { [weak self] in
-            guard let device = self?.videoDevice, (try? device.lockForConfiguration()) != nil else { return }
+            guard let self, generation == self.settleGeneration,
+                  let device = self.videoDevice, (try? device.lockForConfiguration()) != nil else { return }
             if device.isFocusModeSupported(.locked) { device.focusMode = .locked }
             if device.isExposureModeSupported(.locked) { device.exposureMode = .locked }
             device.unlockForConfiguration()
@@ -153,7 +252,14 @@ final class CaptureSessionController: NSObject, RecordingService, CameraPreviewS
     @MainActor func attachPreview(_ layer: AVCaptureVideoPreviewLayer) {
         layer.session = session
         previewLayer = layer
-        guard let device = videoDevice ?? AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else { return }
+        observeRotation()
+    }
+
+    /// Keeps the preview level for the current lens; rebuilt after a lens switch.
+    @MainActor private func observeRotation() {
+        guard let layer = previewLayer,
+              let device = lock.withLock({ currentDevice }) ?? lens.flatMap(Self.backCamera(for:)) else { return }
+        rotationObservation?.invalidate()
         let coordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: layer)
         rotationCoordinator = coordinator
         applyPreviewRotation(coordinator.videoRotationAngleForHorizonLevelPreview)

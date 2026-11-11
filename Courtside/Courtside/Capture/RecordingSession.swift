@@ -34,10 +34,15 @@ final class RecordingSession {
     private(set) var game: Game?
     /// Why recording stopped, when the parent didn't stop it.
     private(set) var endNote: String?
+    /// The lens in use and the ones this phone has (decision 0026). Known once ready.
+    private(set) var lens: CameraLens?
+    private(set) var availableLenses: [CameraLens] = []
+    private(set) var isSwitchingLens = false
 
     @ObservationIgnored let service: RecordingService
     @ObservationIgnored private let context: ModelContext
     @ObservationIgnored private let freeSpace: () -> Int64
+    @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let clock: () -> CFTimeInterval
     @ObservationIgnored private var lastMarkAt: CFTimeInterval = -.greatestFiniteMagnitude
     @ObservationIgnored private var lastInteraction: CFTimeInterval = 0
@@ -49,16 +54,23 @@ final class RecordingSession {
         service: RecordingService,
         context: ModelContext,
         freeSpace: @escaping () -> Int64 = StorageManager.availableCapacity,
-        clock: @escaping () -> CFTimeInterval = CACurrentMediaTime
+        clock: @escaping () -> CFTimeInterval = CACurrentMediaTime,
+        defaults: UserDefaults = .standard
     ) {
         self.service = service
         self.context = context
         self.freeSpace = freeSpace
+        self.defaults = defaults
         self.clock = clock
     }
 
     var canStart: Bool {
-        phase == .ready && !preflightIssues.contains(where: \.blocksRecording)
+        phase == .ready && !isSwitchingLens && !preflightIssues.contains(where: \.blocksRecording)
+    }
+
+    /// The lens can change only before recording starts, and only on a phone with more than one.
+    var canChooseLens: Bool {
+        phase == .ready && !isSwitchingLens && availableLenses.count > 1
     }
 
     // MARK: Lifecycle
@@ -76,12 +88,28 @@ final class RecordingSession {
         }
         thermalWarning = RecordingPreflight.thermalWarning(for: ProcessInfo.processInfo.thermalState)
         do {
-            try await service.prepare()
+            try await service.prepare(preferredLens: LensSettings.saved(in: defaults))
+            lens = service.lens
+            availableLenses = service.availableLenses
             phase = .ready
         } catch {
             failureNeedsSettings = (error as? RecordingError)?.needsSettings ?? false
             phase = .failed(error.localizedDescription)
         }
+    }
+
+    /// Switches lens and remembers the choice for next time. Ignored once recording has started.
+    func selectLens(_ newLens: CameraLens) async {
+        guard canChooseLens, newLens != lens, availableLenses.contains(newLens) else { return }
+        isSwitchingLens = true
+        defer { isSwitchingLens = false }
+        do {
+            try await service.selectLens(newLens)
+            LensSettings.save(newLens, in: defaults)
+        } catch {
+            Self.log.error("Lens switch failed: \(error.localizedDescription)")
+        }
+        lens = service.lens
     }
 
     func start() async {

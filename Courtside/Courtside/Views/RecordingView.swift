@@ -107,6 +107,15 @@ struct RecordingView: View {
                 }
             }
             Spacer()
+            if session.availableLenses.count > 1 {
+                LensPicker(
+                    lenses: session.availableLenses,
+                    selection: session.lens,
+                    isEnabled: session.canChooseLens
+                ) { lens in
+                    Task { await session.selectLens(lens) }
+                }
+            }
             Button {
                 Task { await session.start() }
             } label: {
@@ -186,6 +195,11 @@ struct RecordingView: View {
                         Label(Format.duration(session.elapsed), systemImage: "record.circle.fill")
                             .labelStyle(RedDotLabelStyle())
                         Label("\(session.markCount)", systemImage: "flag.fill")
+                        // The lens is fixed once recording starts; shown, not changeable.
+                        if let lens = session.lens {
+                            Text(lens.label)
+                                .accessibilityLabel("\(lens.spokenName), locked while recording")
+                        }
                     }
                     .font(.title3.weight(.bold).monospacedDigit())
                     if let warning = session.thermalWarning {
@@ -313,6 +327,36 @@ struct RecordingView: View {
         guard let savedBrightness else { return }
         screen?.brightness = savedBrightness
         self.savedBrightness = nil
+    }
+}
+
+/// 0.5× / 1×, like the Camera app. Shown only before recording, on phones with both lenses.
+private struct LensPicker: View {
+    let lenses: [CameraLens]
+    let selection: CameraLens?
+    let isEnabled: Bool
+    let onSelect: (CameraLens) -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(lenses, id: \.self) { lens in
+                let isSelected = lens == selection
+                Button {
+                    onSelect(lens)
+                } label: {
+                    Text(lens.label)
+                        .font(.subheadline.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(isSelected ? .yellow : .white)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .background(.black.opacity(isSelected ? 0.75 : 0.45), in: Circle())
+                }
+                .accessibilityLabel(lens.spokenName)
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+            }
+        }
+        .padding(4)
+        .background(.black.opacity(0.35), in: Capsule())
+        .disabled(!isEnabled)
     }
 }
 

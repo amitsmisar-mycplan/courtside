@@ -9,6 +9,7 @@ enum RecordingError: LocalizedError {
     case alreadyRecording
     case notRecording
     case startFailed(Error?)
+    case lensLocked
 
     var errorDescription: String? {
         switch self {
@@ -26,6 +27,8 @@ enum RecordingError: LocalizedError {
             "Not recording."
         case .startFailed:
             "Recording couldn't start. Try again."
+        case .lensLocked:
+            "The lens can't change while recording."
         }
     }
 
@@ -42,8 +45,15 @@ enum RecordingError: LocalizedError {
 /// (and tests can use a fake). Extends the spec's three calls with set-up, refocus,
 /// shutdown, and a callback for recordings that end without `stopRecording()`.
 protocol RecordingService: AnyObject {
-    /// Checks for a camera, asks for permissions, and starts the camera feed.
-    func prepare() async throws
+    /// Checks for a camera, asks for permissions, and starts the camera feed with `preferredLens` if
+    /// the phone has it (else ultra-wide, else the main camera; `LensSettings.choose`).
+    func prepare(preferredLens: CameraLens?) async throws
+    /// Back lenses this phone has, widest first. Known after `prepare`.
+    var availableLenses: [CameraLens] { get }
+    /// The lens in use. Known after `prepare`.
+    var lens: CameraLens? { get }
+    /// Switches lens before recording; throws `lensLocked` while recording.
+    func selectLens(_ lens: CameraLens) async throws
     /// Starts writing a new game video; returns its URL once the file has actually started.
     func startRecording() async throws -> URL
     func stopRecording() async throws -> (url: URL, duration: Double)

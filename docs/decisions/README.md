@@ -29,3 +29,4 @@ One file per decision that deviates from or extends the spec. Add new ones with 
 | [0023](0023-clip-quality.md) | Clips and trims at 1080p by default ("Clip quality"); Full quality keeps the old behavior | Accepted |
 | [0024](0024-vertical-zoom.md) | Zoom and aim for Vertical exports of landscape clips, capped at 1.5× upscale | Accepted |
 | [0025](0025-bigger-video.md) | Video takes most of the Clip and Trim screens; Save, Share, Delete share a row when they fit | Accepted |
+| [0026](0026-ultra-wide-lens.md) | Record with the 0.5× ultra-wide lens by default; 0.5× / 1× choice before recording, remembered | Accepted |
