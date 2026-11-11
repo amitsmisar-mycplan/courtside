@@ -360,3 +360,20 @@ every player shows them as 2160×3840 portrait; 20261031_144105 is a landscape s
 plays sideways in Photos and QuickTime too. The app applies each video's rotation flag as recorded and its clips keep the
 source's flag. The DJI files (1080×1920 with a −90° flag) correctly show as 1920×1080 landscape.
 
+
+## Tap-to-follow spike (debug only) — 2026-11-11, "Courtside Tests" Simulator (iPhone 17 Pro, iOS 27)
+[Decision 0027](../decisions/0027-tap-to-follow-spike.md), [report](../spikes/tap-to-follow.md). Used the clips
+already in the Simulator; nothing imported. The one results-log line the check wrote was deleted afterwards.
+- Settings shows a "Debug" section with "Tap-to-follow experiment". The Release build has neither the section nor any
+  spike code: the binary has no TapToFollow symbols or strings.
+- The list shows the mode, the goal (later the running score), Share results log once a result exists, and a ✓ / ✗ on
+  tested clips.
+- Generated portrait test clip (no people): "No people found…". The tap makes a default box exactly on the moving
+  dot, and the green box follows it during playback. 6.3 s for 13 s on the Simulator's CPU-only Vision.
+- Real 4K game clip ("vs Lakers"): 3 people detected (white boxes; most players missed). The tap on #51 snapped to
+  him, and the box stayed on him but shrank to his head. 4.3 s for 5.1 s. 9:16 follow keeps #51 in the window.
+- "Lost or switched" shows "Logged: lost" and writes one JSON line with every field. The list then shows "0 of 1 clips
+  (0 %)" and a ✗.
+- Fixed during the check: the 9:16 preview's black background spilled under the title bar, and "70 %" wrapped
+  between the number and the sign.
+- Vision needs the CPU in the Simulator ("Could not create inference context" otherwise); Simulator builds set it.

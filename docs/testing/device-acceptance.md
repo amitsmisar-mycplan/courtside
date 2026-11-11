@@ -23,6 +23,15 @@ Device: founder's son's iPhone (confirmed 2026-10-07).
 - [ ] Save a 0.5× clip as Vertical and zoom to the limit (77 %, "Zoom limited by video quality"): are players big and
       sharp enough to share?
 
+## Tap-to-follow experiment ([decision 0027](../decisions/0027-tap-to-follow-spike.md)) — debug build only
+Run the app from Xcode (Debug); TestFlight builds don't have it. Settings → Debug → Tap-to-follow experiment.
+- [ ] About 20 clips, a mix of open court and crowded paint. For each: tap your player on the first frame, Track, then
+      watch the whole loop (tap the video to pause) and press "Stayed on my player" or "Lost or switched" (add a note)
+- [ ] Set the Scene picker for each clip; try a few clips in both modes ("Tap again" and switch the mode)
+- [ ] Note the processing time line for a 1080p and a 4K clip (it's in the log too)
+- [ ] Try "9:16 follow" on a few: is the motion calm enough to watch?
+- [ ] Share results log → AirDrop or Files, and send it over. Goal: stayed on at least 70 % of clips
+
 ## Background clip-making ([decision 0017](../decisions/0017-background-clip-resume.md))
 - [ ] Import a long game (10+ min), tap 8+ marks, Done → "Making clip 1 of 8"
 - [ ] After the first clip, switch to another app for 1 minute (use it; don't just lock the phone)

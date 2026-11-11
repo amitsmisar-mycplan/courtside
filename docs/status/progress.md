@@ -102,3 +102,9 @@ the Simulator); needs the lens check on the iPhone.
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).
+
+**Spike: tap-to-follow tracking** (debug builds only, [0027](../decisions/0027-tap-to-follow-spike.md),
+[report](../spikes/tap-to-follow.md)) — on `spike/tap-to-follow`. Settings → Debug → Tap-to-follow experiment: tap a
+player on a clip's first frame, track it with Apple Vision, watch the box or a 9:16 follow preview, and log
+"Stayed" / "Lost". Fast (about 2 s per 13 s clip on Apple silicon), but 0 of 6 real clips checked kept the right
+player; recommendation is no-go for this approach. Waiting on the founder's 20-clip test on the iPhone.

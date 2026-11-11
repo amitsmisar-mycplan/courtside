@@ -30,3 +30,4 @@ One file per decision that deviates from or extends the spec. Add new ones with 
 | [0024](0024-vertical-zoom.md) | Zoom and aim for Vertical exports of landscape clips, capped at 1.5× upscale | Accepted |
 | [0025](0025-bigger-video.md) | Video takes most of the Clip and Trim screens; Save, Share, Delete share a row when they fit | Accepted |
 | [0026](0026-ultra-wide-lens.md) | Record with the 0.5× ultra-wide lens by default; 0.5× / 1× choice before recording, remembered | Accepted |
+| [0027](0027-tap-to-follow-spike.md) | Tap-to-follow tracking spike: debug-only screen, Apple Vision tracker, local results log | Experiment |

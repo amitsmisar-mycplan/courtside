@@ -58,6 +58,11 @@ struct SettingsView: View {
                         postRoll = ClipWindow.defaultPostRoll
                     }
                 }
+                #if DEBUG
+                Section("Debug") {
+                    NavigationLink("Tap-to-follow experiment") { TapToFollowListView() }
+                }
+                #endif
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
