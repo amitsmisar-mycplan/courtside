@@ -14,7 +14,24 @@ final class FakeRecordingService: RecordingService {
     let url = StorageManager.gameVideoURL(filename: "fake-\(UUID().uuidString).mov")
     var onUnexpectedFinish: (@MainActor (URL, Double) -> Void)?
 
-    func prepare() async throws { if let prepareError { throw prepareError } }
+    /// The phone's back lenses; both by default.
+    var lensesOnPhone: [CameraLens] = CameraLens.allCases
+    var selectLensError: Error?
+    private(set) var preferredLensAsked: CameraLens??
+    private(set) var selectedLenses: [CameraLens] = []
+    private(set) var lens: CameraLens?
+    var availableLenses: [CameraLens] { lensesOnPhone }
+
+    func prepare(preferredLens: CameraLens?) async throws {
+        preferredLensAsked = .some(preferredLens)
+        if let prepareError { throw prepareError }
+        lens = LensSettings.choose(saved: preferredLens, available: lensesOnPhone)
+    }
+    func selectLens(_ lens: CameraLens) async throws {
+        selectedLenses.append(lens)
+        if let selectLensError { throw selectLensError }
+        self.lens = lens
+    }
     func startRecording() async throws -> URL { url }
     func stopRecording() async throws -> (url: URL, duration: Double) {
         if let stopError { throw stopError }

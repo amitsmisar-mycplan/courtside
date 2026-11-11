@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-11-05_
+_Last updated: 2026-11-11_
 
 | Step | What | Status |
 |---|---|---|
@@ -92,6 +92,12 @@ iPhone 17 Pro, 72–73 % on an iPhone SE (was about 29 %). Clip controls in two 
 Share and Delete as tiles), falling back to more rows on small screens or large text; Trim spacing tightened, Reset on
 the time row ([0025](../decisions/0025-bigger-video.md)). Layout only. Built on `feature/bigger-video`; Simulator-verified
 on "Courtside Tests" and "Courtside Tests SE".
+
+**Feature: ultra-wide recording lens** — recording uses the 0.5× ultra-wide lens by default (the main 1× camera on
+phones without one), so a tripod sees the whole court. 0.5× / 1× buttons before recording, locked once it starts; the
+last choice is remembered. Same 1080p / 60 fps (or best available) / HEVC settings on either lens
+([0026](../decisions/0026-ultra-wide-lens.md)). Built on `feature/ultra-wide-lens`; lens logic unit-tested (no camera in
+the Simulator); needs the lens check on the iPhone.
 
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
