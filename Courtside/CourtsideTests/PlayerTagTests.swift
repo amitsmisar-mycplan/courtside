@@ -139,26 +139,29 @@ private enum BeforePlayers {
 final class PlayerTagTests: XCTestCase {
     private var container: ModelContainer!
     private var context: ModelContext { container.mainContext }
-    private var defaults: UserDefaults!
-    private var suiteName = ""
+    /// The app's own settings, with the two player keys saved in setUp and put back in tearDown:
+    /// a separate suite would leave a settings file behind in the app container.
+    private let defaults = UserDefaults.standard
+    private var savedSettings: [String: Any] = [:]
+    private let settingKeys = [PlayerSettings.myPlayerKey, PlayerSettings.clipFilterKey]
     private var createdFiles: [URL] = []
 
     override func setUp() async throws {
         container = try ModelContainer(for: Game.self, GamePart.self, Mark.self, Clip.self, SuggestedMoment.self, Player.self,
                                        configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-        suiteName = "PlayerTagTests-\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suiteName)
+        for key in settingKeys {
+            savedSettings[key] = defaults.object(forKey: key)
+            defaults.removeObject(forKey: key)
+        }
         StorageManager.prepareDirectories()
     }
 
     override func tearDown() async throws {
         // Runs whether the test passed or failed: nothing it made is left in the app container.
         for url in createdFiles { try? FileManager.default.removeItem(at: url) }
-        defaults.removePersistentDomain(forName: suiteName)
-        // The emptied suite still leaves its file behind.
-        let preferences = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Preferences/\(suiteName).plist")
-        try? FileManager.default.removeItem(at: preferences)
+        for key in settingKeys {
+            defaults.set(savedSettings[key], forKey: key)
+        }
         container = nil
     }
 
@@ -364,8 +367,9 @@ final class PlayerTagTests: XCTestCase {
 
         PlayerSettings.setMyPlayerID(id, in: defaults)
         PlayerSettings.setClipFilter(.player(id), in: defaults)
-        // A relaunch reads the same stored values through a new defaults object.
-        let relaunched = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        // A relaunch reads the stored values back; flush them first, as the app does on quit.
+        defaults.synchronize()
+        let relaunched = UserDefaults.standard
         XCTAssertEqual(PlayerSettings.myPlayerID(in: relaunched), id)
         XCTAssertEqual(PlayerSettings.clipFilter(in: relaunched), .player(id))
 

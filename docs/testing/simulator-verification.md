@@ -343,7 +343,8 @@ Unit tests (`PlayerTagTests`, 6):
   filter whose player is gone, or My Player with none chosen, falls back to All.
 - Deleting a player untags their clips and clears My Player; clips, marks and clip files are untouched (checked from a
   fresh context and on disk). Deleting a clip and then a whole game leaves the player and its other clips.
-- The filter and My Player read back through a new `UserDefaults` for the same suite (a relaunch), for every filter.
+- The filter and My Player are stored and read back after a flush (as on a relaunch), for every filter. The tests use
+  the app's own settings and put the two keys back afterwards, so they leave no settings file behind.
 
 In the app (data backed up first, restored afterwards):
 - **Clip screen size, main build vs this branch, same clips:** video box 563 pt (17 Pro, multi-part clip, longest info
