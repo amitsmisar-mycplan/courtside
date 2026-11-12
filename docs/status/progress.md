@@ -99,6 +99,11 @@ last choice is remembered. Same 1080p / 60 fps (or best available) / HEVC settin
 ([0026](../decisions/0026-ultra-wide-lens.md)). Built on `feature/ultra-wide-lens`; lens logic unit-tested (no camera in
 the Simulator); needs the lens check on the iPhone.
 
+**Spike: tap-to-follow tracking** ([0027](../decisions/0027-tap-to-follow-spike.md),
+[report](../spikes/tap-to-follow.md)) — failed: 0 of 6 real clips kept the right player with Apple Vision tracking.
+The debug screen and tracker stay on branch `spike/tap-to-follow` and are not merged. The next step was manual aim
+keyframes, now built (below).
+
 **Feature: aim points (Vertical keyframes)** — in Save to Photos → Vertical the clip now plays under the 9:16 window
 with a scrub bar. "Add Point" saves the aim at that moment (up to 5); the export glides between points with ease-in/out,
 holds before the first and after the last, and never pans faster than one window width per second. One point exports
