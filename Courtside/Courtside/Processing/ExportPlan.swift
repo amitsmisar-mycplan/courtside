@@ -63,7 +63,7 @@ extension ExportFrameStep {
 ///    output is a file today; a slow-mo *step* would build an `AVComposition` from this source).
 /// 2. **Timeline** — reserved for steps that change length, such as an end card (feature 7). None yet.
 /// 3. **Layout** — the output frame: as-is, or vertical with a blurred background, zoomed and
-///    aimed for landscape clips (decision 0024).
+///    aimed for landscape clips (decision 0024), the aim gliding between points (decision 0028).
 /// 4. **Frame steps** — drawn over each laid-out frame: the game label (decision 0019), later the watermark.
 /// 5. **Export** — `ClipExtractor`, HEVC Highest Quality, never passthrough; labelled exports at
 ///    "1080p (faster)" use the HEVC 1080p preset on a canvas capped at 1920 (decision 0021).
@@ -75,6 +75,9 @@ struct ExportPlan {
     var maxLongSide: CGFloat? = nil
     /// Vertical only: zoom and aim for a landscape clip (decision 0024). Nil is zoom 0, today's layout.
     var verticalFraming: VerticalFraming? = nil
+    /// Vertical only: the aim over time, in seconds of `source` (decision 0028). Nil holds
+    /// `verticalFraming`'s single aim for the whole clip, as before; set only when the aim moves.
+    var aimPath: AimPath? = nil
 
     /// True when the output would be the source file unchanged, so it can be saved without re-encoding.
     var isUnchangedSource: Bool { format == .original && frameSteps.isEmpty }
@@ -96,17 +99,25 @@ extension ExportPlan {
     /// A clip's plan as Save to Photos and Share build it: the game label as a frame step when one
     /// applies, capped at 1080p when it does and the quality setting says so. Without a label nothing
     /// changes: the fast path and unlabelled Vertical keep today's quality.
-    /// `framing` applies to Vertical only and is ignored for Original.
+    /// `framing` and `aim` apply to Vertical only and are ignored for Original. An aim that never
+    /// moves (one point) becomes `framing`'s center, so it exports exactly as a single aim did.
     init(
         source: URL, format: ExportFormat, label: LabelStep.LabelText?, quality: LabelledExportQuality = .full,
-        framing: VerticalFraming? = nil
+        framing: VerticalFraming? = nil, aim: AimPath? = nil
     ) {
+        var framing = format == .vertical ? framing : nil
+        var path = framing == nil ? nil : aim
+        if let fixed = path, fixed.isStatic {
+            if let first = fixed.keys.first { framing?.center = first.center }
+            path = nil
+        }
         self.init(
             source: source,
             format: format,
             frameSteps: label.map { [LabelStep(label: $0)] } ?? [],
             maxLongSide: label != nil && quality == .hd1080 ? Self.cappedLongSide : nil,
-            verticalFraming: format == .vertical ? framing : nil
+            verticalFraming: framing,
+            aimPath: path
         )
     }
 }

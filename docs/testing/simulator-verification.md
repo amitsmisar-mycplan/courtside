@@ -332,6 +332,36 @@ right with the label over the video. Photos add-only access was granted on this 
 answer). Not seen in the UI: the "Zoom limited by video quality" note, since this Simulator has no landscape clip under
 4K; it's covered by the session test. The three saved videos are left in that Simulator's Photos.
 
+## Aim points — 2026-11-11, "Courtside Tests" (iPhone 17 Pro) and "Courtside Tests SE" (iPhone SE 3rd gen), iOS 27
+
+Unit and export tests (`AimKeyframesTests`, 16): one point gives exactly the static framing and the same `ExportPlan` as a
+single aim (points that never move too; Original and portrait clips ignore points); smoothstep easing hits each point on
+time, halfway at half time, slow at both ends, no overshoot; holds before the first and after the last point; sampled pan
+speed never exceeds 1 window width per second, close points fall short by exactly the cap, distant ones arrive exactly;
+aims clamped inside the video at the export zoom, the 1.5× zoom cap unchanged; cache key includes the points; game time ↔
+file time through a slow-mo segment, both ways; trim re-mapping (inside points keep their moments, nearest outside point
+moves to each edge, no duplicates) and through `ClipExtractor.trim` on a stored clip; a store from before this change
+opens with no points and the clip unchanged, points survive a relaunch, and deleting the clip removes them; unreadable
+data means no points; the editor's session (one centered point to start, dragging it aims the whole clip, Add Point,
+drafts dropped on scrub, the window between points equals the export math, 5-point limit, jump to and delete a point,
+moving a mark stays between neighbors, saved in game seconds, one centered point stores nothing, slow-mo timeline);
+a real 3-point export of a banded 1920×1080 video: 6 s, 1080×1920, glides left → right → middle, and each sampled frame
+shows the bands the shared math predicts; a labelled export of a slow-mo render with moving aim keeps its length.
+`VerticalZoomTests` (17) still pass.
+
+Export cost (`AimKeyframesTimingTests`, real footage, 13 s clip at the 1080p default, Vertical 60 %): static and 3 points
+take the same time, within ±1.6 s (4K source 81.2 / 80.9 s labelled, 75.4 / 76.2 s unlabelled; DJI 1080p 70.0 / 68.4 s
+and 69.4 / 68.7 s). See [0028](../decisions/0028-aim-keyframes.md#export-cost).
+
+In the app ("Courtside Tests SE", the 1280×720 synthetic 60 fps clip): Save to Photos → Vertical shows the clip playing
+under the window with a scrub bar, one diamond at the start, "Zoom limited by video quality" at 36 %, everything on
+screen at default text. Add Point at 0:06, dragged the window right (yellow while on the point); scrubbed to 0:01 and
+pressed Play: the window glided right across the clip. Relaunched the app: both points were still there and the sheet
+opened on the first. Largest accessibility text: video held at its minimum, play/time/point controls stacked, page
+scrolls to Save Vertical; text size set back to default. Tapped the second diamond (jumped to 0:06), Delete Point: back
+to one centered point, and the store shows no aim data for either clip. Not saved to Photos in the app here (the export
+path is covered by the real export tests above).
+
 ## Bigger video — 2026-11-05, "Courtside Tests" (iPhone 17 Pro) and "Courtside Tests SE" (iPhone SE 3rd gen), iOS 27
 
 "Courtside Tests SE" is a second test-only Simulator made for this check (small screen). Clips used: a landscape 4K clip

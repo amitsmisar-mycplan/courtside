@@ -178,9 +178,7 @@ struct ClipPlayerView: View {
     private var saveButton: some View {
         Button {
             looper.pause()
-            exportSession = ClipExportSession(
-                clipID: clip.id, source: currentURL, label: .forExport(game: clip.game)
-            )
+            exportSession = ClipExportSession(clip: clip, source: currentURL, context: modelContext)
         } label: {
             Label(version == .slowMo ? "Save Slow Mo to Photos" : "Save to Photos", systemImage: "square.and.arrow.down")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

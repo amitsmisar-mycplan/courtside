@@ -5,7 +5,7 @@ import Foundation
 /// `StorageManager` removes them when their clip or game is deleted, and at the next launch.
 ///
 /// A copy is reused only for the same clip, source file (unchanged since), format, label text,
-/// quality and Vertical zoom and aim (decision 0024). Anything else replaces it, and the old file is removed.
+/// quality and Vertical zoom and aim (decisions 0024 and 0028). Anything else replaces it, and the old file is removed.
 @MainActor
 final class LabelledExportCache {
     static let shared = LabelledExportCache()
@@ -21,10 +21,12 @@ final class LabelledExportCache {
         let quality: LabelledExportQuality
         /// Vertical zoom and aim, rounded so the same look reuses its copy; nil for Original and zoom 0 layouts.
         let framing: VerticalFraming?
+        /// Aim points when the aim moves (decision 0028), rounded the same way; nil for one aim.
+        let aim: AimPath?
 
         init(
             clipID: UUID, source: SourceStamp, format: ExportFormat, label: LabelStep.LabelText,
-            quality: LabelledExportQuality, framing: VerticalFraming? = nil
+            quality: LabelledExportQuality, framing: VerticalFraming? = nil, aim: AimPath? = nil
         ) {
             self.clipID = clipID
             self.source = source
@@ -32,6 +34,7 @@ final class LabelledExportCache {
             self.label = label
             self.quality = quality
             self.framing = framing?.rounded
+            self.aim = aim?.rounded
         }
 
         /// One copy per clip, source file and format; a new key for the same slot replaces it.

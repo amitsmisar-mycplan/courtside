@@ -23,6 +23,19 @@ Device: founder's son's iPhone (confirmed 2026-10-07).
 - [ ] Save a 0.5× clip as Vertical and zoom to the limit (77 %, "Zoom limited by video quality"): are players big and
       sharp enough to share?
 
+## Aim points ([decision 0028](../decisions/0028-aim-keyframes.md))
+- [ ] Save a landscape clip as Vertical: the clip plays under the 9:16 window, one diamond at the start of the scrub bar;
+      dragging aims the whole clip, as before
+- [ ] Scrub to where the play moves, Add Point, drag the window onto your player; add 1–2 more; Play: does the window
+      glide calmly and arrive on each point? Does any glide feel too slow or fall short?
+- [ ] Tap a diamond (jumps there, window yellow), drag it along the bar, Delete Point
+- [ ] Save Vertical with 3 points: in Photos, does the saved video move exactly like the preview? Note the save time
+      next to a one-point save of the same clip
+- [ ] Leave the sheet and come back, and force-quit and reopen: the points are still there
+- [ ] Trim the clip shorter, then open Vertical again: points inside stay on their moments, outside ones sit at the edges
+- [ ] With a slow-mo version showing: points land on the same moments, the glide through the slow part is slower
+- [ ] Largest text size: video shrinks, controls stack, Save Vertical reachable by scrolling
+
 ## Background clip-making ([decision 0017](../decisions/0017-background-clip-resume.md))
 - [ ] Import a long game (10+ min), tap 8+ marks, Done → "Making clip 1 of 8"
 - [ ] After the first clip, switch to another app for 1 minute (use it; don't just lock the phone)
