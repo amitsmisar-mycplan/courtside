@@ -113,7 +113,7 @@ final class VerticalZoomTests: XCTestCase {
         let landscape = ClipExportSession(clipID: UUID(), source: try await makeBanded(size: Self.hd), photos: Photos())
         await landscape.load()
         XCTAssertTrue(landscape.canFrame)
-        XCTAssertNotNil(landscape.previewFrame)
+        XCTAssertGreaterThan(landscape.preview.duration, 0, "the clip plays under the window")
         XCTAssertEqual(landscape.framing.zoom, 0.6, "default 60 %, centered")
         XCTAssertEqual(landscape.framing.center, CGPoint(x: 0.5, y: 0.5))
         landscape.choose(.vertical)
@@ -130,7 +130,7 @@ final class VerticalZoomTests: XCTestCase {
         let portrait = ClipExportSession(clipID: UUID(), source: try await makeBanded(size: CGSize(width: 1080, height: 1920)), photos: Photos())
         await portrait.load()
         XCTAssertFalse(portrait.canFrame)
-        XCTAssertNil(portrait.previewFrame)
+        XCTAssertEqual(portrait.preview.duration, 0, "nothing to aim")
         portrait.choose(.vertical)
         XCTAssertNotEqual(portrait.phase, .framing, "portrait clips export straight away, as before")
         await portrait.finish()
@@ -198,7 +198,7 @@ final class VerticalZoomTests: XCTestCase {
     func testFullZoomHasNoBlurredBands() async throws {
         let source = try await makeBanded(size: Self.uhd)
         let output = try await export(source, framing: VerticalFraming(zoom: 1))
-        let frame = try await Frame(of: output, at: 1)
+        let frame = try await DecodedFrame(of: output, at: 1)
         // Top and bottom rows are the video's own bands, not blur: same level as the middle.
         for x in [100, 540, 980] {
             XCTAssertEqual(frame.gray(x: x, y: 30), frame.gray(x: x, y: 960), accuracy: 12, "x \(x)")
@@ -208,8 +208,8 @@ final class VerticalZoomTests: XCTestCase {
 
     func testPortraitSourceKeepsTodaysVertical() async throws {
         let source = try await makeBanded(size: CGSize(width: 1080, height: 1920))
-        let framed = try await Frame(of: try await export(source, framing: VerticalFraming(zoom: 1, center: CGPoint(x: 0, y: 0.5))), at: 1)
-        let today = try await Frame(of: try await export(source, framing: nil), at: 1)
+        let framed = try await DecodedFrame(of: try await export(source, framing: VerticalFraming(zoom: 1, center: CGPoint(x: 0, y: 0.5))), at: 1)
+        let today = try await DecodedFrame(of: try await export(source, framing: nil), at: 1)
         for x in stride(from: 40, to: 1080, by: 100) {
             XCTAssertEqual(framed.gray(x: x, y: 960), today.gray(x: x, y: 960), accuracy: 6)
         }
@@ -227,8 +227,8 @@ final class VerticalZoomTests: XCTestCase {
         let source = try await makeBanded(size: Self.uhd, seconds: 4)
         for zoom in [0.0, 0.6, 1.0] {
             let framing = VerticalFraming(zoom: zoom)
-            let labelled = try await Frame(of: try await export(source, framing: framing, label: label), at: 1)
-            let plain = try await Frame(of: try await export(source, framing: framing), at: 1)
+            let labelled = try await DecodedFrame(of: try await export(source, framing: framing, label: label), at: 1)
+            let plain = try await DecodedFrame(of: try await export(source, framing: framing), at: 1)
             // In the box's left padding at mid-height (clear of the text and the rounded corners):
             // darker with the label than without.
             let x = Int(box.minX) + 10, y = 1920 - Int(box.midY)
@@ -258,9 +258,9 @@ final class VerticalZoomTests: XCTestCase {
         let output = try await export(source, framing: framing)
         let outputSize = try await SlowMoComposer.displaySize(of: output)
         XCTAssertEqual(outputSize, Self.canvas)
-        let frame = try await Frame(of: output, at: 1)
+        let frame = try await DecodedFrame(of: output, at: 1)
         // Each band's level as the source itself decodes (encoding shifts levels a little).
-        let sourceFrame = try await Frame(of: source, at: 1)
+        let sourceFrame = try await DecodedFrame(of: source, at: 1)
         let levels = (0..<Self.bands).map { band in
             sourceFrame.gray(x: Int((Double(band) + 0.5) / Double(Self.bands) * Double(sourceFrame.width)), y: sourceFrame.height / 2)
         }
@@ -287,78 +287,13 @@ final class VerticalZoomTests: XCTestCase {
         return output
     }
 
-    private static let bands = 8
-    /// Gray level of band `index`, far enough apart to tell after compression.
-    private static func level(_ index: Int) -> Double { Double(16 + index * 30) }
+    private static let bands = BandedVideo.bands
 
-    /// A video of 8 vertical gray bands, darkest on the left, so a frame's columns show which part
-    /// of the source they came from.
     private func makeBanded(size: CGSize, seconds: Int = 2, fps: Int = 10) async throws -> URL {
         let url = FileManager.default.temporaryDirectory.appending(path: "zoom-src-\(UUID().uuidString).mov")
         files.append(url)
-        let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
-        let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
-            AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: size.width, AVVideoHeightKey: size.height,
-        ])
-        let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
-            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
-            kCVPixelBufferWidthKey as String: size.width, kCVPixelBufferHeightKey as String: size.height,
-        ])
-        writer.add(input)
-        writer.startWriting()
-        writer.startSession(atSourceTime: .zero)
-        let width = Int(size.width), height = Int(size.height)
-        for frame in 0..<(seconds * fps) {
-            while !input.isReadyForMoreMediaData { try await Task.sleep(for: .milliseconds(2)) }
-            var buffer: CVPixelBuffer?
-            CVPixelBufferPoolCreatePixelBuffer(nil, adaptor.pixelBufferPool!, &buffer)
-            let pixels = buffer!
-            CVPixelBufferLockBaseAddress(pixels, [])
-            let base = CVPixelBufferGetBaseAddress(pixels)!.assumingMemoryBound(to: UInt8.self)
-            let rowBytes = CVPixelBufferGetBytesPerRow(pixels)
-            var row = [UInt8](repeating: 255, count: width * 4)
-            for x in 0..<width {
-                let value = UInt8(Self.level(min(Self.bands - 1, x * Self.bands / width)))
-                row[x * 4] = value; row[x * 4 + 1] = value; row[x * 4 + 2] = value
-            }
-            for y in 0..<height {
-                row.withUnsafeBytes { (base + y * rowBytes).update(from: $0.bindMemory(to: UInt8.self).baseAddress!, count: width * 4) }
-            }
-            CVPixelBufferUnlockBaseAddress(pixels, [])
-            adaptor.append(pixels, withPresentationTime: CMTime(value: CMTimeValue(frame), timescale: CMTimeScale(fps)))
-        }
-        input.markAsFinished()
-        await writer.finishWriting()
-        if let error = writer.error { throw error }
+        try await BandedVideo.make(at: url, size: size, seconds: seconds, fps: fps)
         return url
-    }
-
-    /// One decoded frame, readable as gray levels at top-left pixel coordinates.
-    private struct Frame {
-        let width: Int
-        let height: Int
-        let bytes: [UInt8]
-
-        init(of url: URL, at seconds: Double) async throws {
-            let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
-            generator.appliesPreferredTrackTransform = true
-            generator.requestedTimeToleranceBefore = .zero
-            generator.requestedTimeToleranceAfter = .zero
-            let image = try await generator.image(at: CMTime(seconds: seconds, preferredTimescale: 600)).image
-            width = image.width
-            height = image.height
-            var bytes = [UInt8](repeating: 0, count: width * height * 4)
-            let context = CGContext(data: &bytes, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
-                                    space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
-            context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
-            self.bytes = bytes
-        }
-
-        /// Average of R, G and B at (x, y), y from the top.
-        func gray(x: Int, y: Int) -> Double {
-            let i = (y * width + x) * 4
-            return (Double(bytes[i]) + Double(bytes[i + 1]) + Double(bytes[i + 2])) / 3
-        }
     }
 }
 

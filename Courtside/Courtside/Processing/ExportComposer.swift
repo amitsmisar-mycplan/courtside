@@ -33,17 +33,21 @@ enum ExportComposer {
             ? ExportFormat.verticalRenderSize
             : ExportPlan.cappedSize(videoSize, maxLongSide: plan.maxLongSide)
         let foreground: CGRect
+        // Set when the aim moves during the clip (decision 0028): the foreground is placed per frame.
+        var motion: AimMotion?
         if plan.format == .vertical {
             // Zoomed and aimed for landscape clips; portrait clips (and zoom 0) as before.
             if let framing = plan.verticalFraming, VerticalFraming.applies(to: videoSize) {
                 foreground = framing.foreground(videoSize: videoSize, canvas: canvas)
+                motion = plan.aimPath?.motion(zoom: framing.zoom, videoSize: videoSize, canvas: canvas)
             } else {
                 foreground = VerticalLayout.foreground(videoSize: videoSize, canvas: canvas)
             }
         } else {
             foreground = CGRect(origin: .zero, size: canvas)
         }
-        // The blur fills whatever the video leaves uncovered; a frame the video fills skips it.
+        // The blur fills whatever the video leaves uncovered; a frame the video fills skips it. A
+        // moving aim stays inside the video, so whether it covers depends on the zoom alone.
         let covers = foreground.minX <= 0.5 && foreground.minY <= 0.5
             && foreground.maxX >= canvas.width - 0.5 && foreground.maxY >= canvas.height - 0.5
         let background: CGRect? = plan.format == .vertical && !covers
@@ -54,15 +58,17 @@ enum ExportComposer {
         let duration = try await asset.load(.duration).seconds
         let steps = plan.frameSteps.map { $0.prepared(canvas: canvas, duration: duration) }
         let canvasRect = CGRect(origin: .zero, size: canvas)
+        let aim = motion
 
         let composition = try await AVMutableVideoComposition.videoComposition(with: asset) { request in
+            let time = request.compositionTime.seconds
             let frame = upright(request.sourceImage, orientation: orientation, videoSize: videoSize)
-            var output = place(frame, in: foreground)
+            let placed = aim.map { $0.framing(at: time).foreground(videoSize: videoSize, canvas: canvas) } ?? foreground
+            var output = place(frame, in: placed)
             if let background {
                 output = output.composited(over: blurredBackground(frame, in: background, canvas: canvasRect))
             }
             output = output.cropped(to: canvasRect)
-            let time = request.compositionTime.seconds
             for step in steps {
                 output = step.apply(to: output, canvas: canvasRect, time: time).cropped(to: canvasRect)
             }

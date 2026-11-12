@@ -19,6 +19,8 @@ import SwiftData
     var slowMoStartSeconds: Double?
     var slowMoEndSeconds: Double?
     var slowMoFileSize: Int64?
+    /// Vertical aim points as JSON (decision 0028); nil is one centered aim. Use `aimTrack`.
+    var aimTrackData: Data?
     var game: Game?
     /// The video this clip was cut from (decision 0022). Use `resolvedPart`.
     var part: GamePart?
@@ -65,6 +67,12 @@ extension Clip {
 
     /// Its part, or Part 1 for a record not yet given one (before the parts migration ran).
     var resolvedPart: GamePart? { part ?? game?.orderedParts.first }
+
+    /// Where Vertical exports point over time (decision 0028). Nil is one centered aim, as before.
+    var aimTrack: AimTrack? {
+        get { aimTrackData.flatMap(AimTrack.decode) }
+        set { aimTrackData = newValue?.encoded() }
+    }
 
     var slowMoURL: URL? { slowMoFilename.map(StorageManager.clipURL(filename:)) }
 

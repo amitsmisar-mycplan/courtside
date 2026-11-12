@@ -250,6 +250,8 @@ final class ClipExtractor {
         clip.markSeconds = mark
         clip.startSeconds = window.start
         clip.endSeconds = window.end
+        // Aim points keep their game moment; any outside the new window move to its edges (decision 0028).
+        if clip.aimTrackData != nil { clip.aimTrack = clip.aimTrack?.fitted(to: window) }
         clip.fileSize = StorageManager.fileSize(at: destination)
         try context.save()
     }

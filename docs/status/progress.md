@@ -99,6 +99,13 @@ last choice is remembered. Same 1080p / 60 fps (or best available) / HEVC settin
 ([0026](../decisions/0026-ultra-wide-lens.md)). Built on `feature/ultra-wide-lens`; lens logic unit-tested (no camera in
 the Simulator); needs the lens check on the iPhone.
 
+**Feature: aim points (Vertical keyframes)** — in Save to Photos → Vertical the clip now plays under the 9:16 window
+with a scrub bar. "Add Point" saves the aim at that moment (up to 5); the export glides between points with ease-in/out,
+holds before the first and after the last, and never pans faster than one window width per second. One point exports
+exactly as before. Points are stored per clip (new optional field, lightweight migration), follow the clip through
+trims and slow mo, and go through the same `ExportComposer` path ([0028](../decisions/0028-aim-keyframes.md)). Built on
+`feature/aim-keyframes`; Simulator-verified on "Courtside Tests" and "Courtside Tests SE".
+
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).
