@@ -332,6 +332,33 @@ right with the label over the video. Photos add-only access was granted on this 
 answer). Not seen in the UI: the "Zoom limited by video quality" note, since this Simulator has no landscape clip under
 4K; it's covered by the session test. The three saved videos are left in that Simulator's Photos.
 
+## Player tags — 2026-11-12, "Courtside Tests" (iPhone 17 Pro) and "Courtside Tests SE" (iPhone SE 3rd gen), iOS 27
+
+Unit tests (`PlayerTagTests`, 6):
+- A store saved by the app before player tags (games with two parts, marks, clips, Find Moments suggestions) opens with
+  every clip untagged and nothing else changed; a tag on a Part 2 clip survives reopening.
+- Tag several clips across parts, retag (one tag per clip), untag. Names are trimmed and numbers keep digits only;
+  an empty name is refused; each new player gets the next unused color.
+- Filter: All, My Player, Untagged, a specific player and an unknown player give the right clips in order; a remembered
+  filter whose player is gone, or My Player with none chosen, falls back to All.
+- Deleting a player untags their clips and clears My Player; clips, marks and clip files are untouched (checked from a
+  fresh context and on disk). Deleting a clip and then a whole game leaves the player and its other clips.
+- The filter and My Player read back through a new `UserDefaults` for the same suite (a relaunch), for every filter.
+
+In the app (data backed up first, restored afterwards):
+- **Clip screen size, main build vs this branch, same clips:** video box 563 pt (17 Pro, multi-part clip, longest info
+  line) and 431 pt (SE) in both, measured from screenshots; also 431 pt on the SE tagged with a 20-character name. At the
+  largest text size both builds are at the 180 pt minimum. A first version made the line 1 pt taller (the person icon);
+  the chip is now drawn over a zero-height placeholder.
+- Existing data migrated in place (5 games on the 17 Pro, 2 on the SE, counts unchanged).
+- Tag from the chip with Add Player inline; filter chips appear once a player exists; Untagged shows "1 of 2 Clips";
+  the filter survived a relaunch; Select mode → Tag Player tagged a clip and left selection mode; Settings renamed a
+  player and changed its color, set My Player (the chip row then reads All / My Player / Untagged / Ava); an empty filter
+  shows "No clips in this game are tagged with Ava." and Show All Clips.
+- Deleting both players: clips kept and untagged, the 12 files in Documents/Clips and Games unchanged (names and sizes), the
+  remembered My Player filter fell back to All.
+- Largest text (SE): the tag moves to its own row on the Clip screen; a row's tag narrows to "#23", then the color dot.
+
 ## Find Moments — 2026-11-12, "Courtside Tests" (iPhone 17 Pro) and "Courtside Tests SE" (iPhone SE 3rd gen), iOS 27
 
 Unit tests (`FindMomentsTests`, 15). Peak picking on synthetic per-second signals:

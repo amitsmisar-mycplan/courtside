@@ -21,6 +21,11 @@ struct GameDetailView: View {
     @State private var editMode: EditMode = .inactive
     @State private var selection = Set<UUID>()
     @State private var confirmDeleteSelected = false
+    @State private var addingPlayer = false
+    /// Remembered across games and launches (decision 0030).
+    @AppStorage(PlayerSettings.clipFilterKey) private var storedFilter = ClipFilter.all
+    @AppStorage(PlayerSettings.myPlayerKey) private var myPlayerRaw = ""
+    @Query(sort: \Player.name) private var players: [Player]
 
     var body: some View {
         List(selection: $selection) {
@@ -43,13 +48,31 @@ struct GameDetailView: View {
         .environment(\.editMode, $editMode)
         .toolbar {
             if editMode.isEditing {
-                ToolbarItem(placement: .bottomBar) {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    Menu {
+                        PlayerTagMenuItems(players: players, current: sharedTag) { player in
+                            tagSelected(with: player)
+                        } add: {
+                            addingPlayer = true
+                        }
+                    } label: {
+                        // Text, not an icon: the bottom bar would show a label as its icon alone.
+                        Text("Tag Player")
+                    }
+                    .disabled(selection.isEmpty)
+                    Spacer()
                     Button(deleteSelectedTitle, role: .destructive) { deleteSelected() }
                         .tint(.red)
                         .disabled(selection.isEmpty)
                 }
             }
         }
+        .addPlayerAlert(isPresented: $addingPlayer) { name, number in
+            if let player = Player.add(name: name, number: number, in: modelContext) {
+                tagSelected(with: player)
+            }
+        }
+        .onChange(of: storedFilter) { selection.removeAll() }
         .confirmationDialog(
             "Delete \(selection.count) clips?",
             isPresented: $confirmDeleteSelected,
@@ -295,8 +318,10 @@ struct GameDetailView: View {
 
     @ViewBuilder
     private var clips: some View {
-        let clips = game.sortedClips
-        if clips.isEmpty {
+        let allClips = game.sortedClips
+        let filter = activeFilter
+        let clips = filter.apply(to: allClips, myPlayerID: myPlayerID)
+        if allClips.isEmpty {
             ContentUnavailableView {
                 Label("No clips yet", systemImage: "film.stack")
             } description: {
@@ -305,6 +330,18 @@ struct GameDetailView: View {
             .listRowBackground(Color.clear)
         } else {
             Section {
+                if clips.isEmpty {
+                    VStack(spacing: 8) {
+                        Text(emptyFilterText(filter))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        Button("Show All Clips") { storedFilter = .all }
+                            .buttonStyle(.borderless)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                }
                 ForEach(clips) { clip in
                     NavigationLink(value: clip) {
                         ClipRow(clip: clip, showsPart: game.hasSeveralParts)
@@ -315,19 +352,108 @@ struct GameDetailView: View {
                     }
                 }
             } header: {
-                HStack {
-                    Text(clips.count == 1 ? "1 Clip" : "\(clips.count) Clips")
-                    Spacer()
-                    Button(editMode.isEditing ? "Done" : "Select") {
-                        withAnimation {
-                            editMode = editMode.isEditing ? .inactive : .active
-                            selection.removeAll()
-                        }
+                VStack(alignment: .leading, spacing: 8) {
+                    if !players.isEmpty {
+                        filterChips(selected: filter)
                     }
-                    .font(.subheadline.weight(.semibold))
-                    .textCase(nil)
+                    clipsHeaderRow(shown: clips.count, total: allClips.count)
                 }
             }
+        }
+    }
+
+    // MARK: Player filter (decision 0030)
+
+    private var myPlayerID: UUID? { UUID(uuidString: myPlayerRaw) }
+    private var myPlayer: Player? { players.first { $0.id == myPlayerID } }
+
+    /// The remembered filter, or All when it names a player who's gone.
+    private var activeFilter: ClipFilter {
+        storedFilter.resolved(myPlayerID: myPlayerID, playerIDs: Set(players.map(\.id)))
+    }
+
+    /// All / My Player / Untagged / each other player. Scrolls sideways when they don't fit.
+    private func filterChips(selected: ClipFilter) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                filterChip("All", filter: .all, selected: selected)
+                if let myPlayer {
+                    filterChip("My Player", color: myPlayer.color, filter: .myPlayer, selected: selected)
+                }
+                filterChip("Untagged", filter: .untagged, selected: selected)
+                ForEach(players.filter { $0.id != myPlayerID }) { player in
+                    filterChip(player.name, color: player.color, filter: .player(player.id), selected: selected)
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .textCase(nil)
+        .scrollClipDisabled()
+    }
+
+    private func filterChip(_ title: String, color: PlayerColor? = nil, filter: ClipFilter, selected: ClipFilter) -> some View {
+        let isOn = filter == selected
+        return Button {
+            storedFilter = filter
+        } label: {
+            HStack(spacing: 5) {
+                if let color {
+                    Circle()
+                        .fill(color.color)
+                        .frame(width: 8, height: 8)
+                }
+                Text(title)
+                    .lineLimit(1)
+            }
+            .font(.subheadline.weight(isOn ? .semibold : .regular))
+            .foregroundStyle(isOn ? Color.white : Color.primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(isOn ? Color.accentColor : Color(.secondarySystemGroupedBackground), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+        .accessibilityLabel("Show \(title)")
+    }
+
+    private func emptyFilterText(_ filter: ClipFilter) -> String {
+        switch filter {
+        case .untagged: "Every clip in this game is tagged."
+        case .myPlayer: "No clips in this game are tagged with \(myPlayer?.name ?? "your player")."
+        case .player(let id): "No clips in this game are tagged with \(players.first { $0.id == id }?.name ?? "this player")."
+        case .all: ""
+        }
+    }
+
+    /// The tag every selected clip shares, for the menu's checkmark; nil when they differ.
+    private var sharedTag: Player? {
+        let tags = Set(selectedClips.map { $0.player?.id })
+        guard tags.count == 1 else { return nil }
+        return selectedClips.first?.player
+    }
+
+    private func tagSelected(with player: Player?) {
+        Player.tag(selectedClips, with: player, in: modelContext)
+        withAnimation {
+            selection.removeAll()
+            editMode = .inactive
+        }
+    }
+
+    private func clipsHeaderRow(shown: Int, total: Int) -> some View {
+        HStack {
+            Text(shown == total
+                 ? (total == 1 ? "1 Clip" : "\(total) Clips")
+                 : "\(shown) of \(total) Clips")
+            Spacer()
+            Button(editMode.isEditing ? "Done" : "Select") {
+                withAnimation {
+                    editMode = editMode.isEditing ? .inactive : .active
+                    selection.removeAll()
+                }
+            }
+            .font(.subheadline.weight(.semibold))
+            .textCase(nil)
         }
     }
 
@@ -405,17 +531,48 @@ private struct ClipRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(times)
                     .font(.headline.monospacedDigit())
-                HStack(spacing: 8) {
-                    Text("\(Int(clip.window.duration.rounded())) sec")
-                    if clip.hasSlowMo {
-                        Label("Slow Mo", systemImage: "tortoise.fill")
+                // The tag fits beside the length, else "#7", else on its own line (large text), where
+                // it narrows the same way, down to its color dot.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) {
+                        facts
+                        tag(.name)
+                    }
+                    HStack(spacing: 8) {
+                        facts
+                        tag(.short)
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        facts
+                        ViewThatFits(in: .horizontal) {
+                            tag(.name)
+                            tag(.short)
+                            tag(.icon)
+                        }
                     }
                 }
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, 2)
+    }
+
+    private var facts: some View {
+        HStack(spacing: 8) {
+            Text("\(Int(clip.window.duration.rounded())) sec")
+            if clip.hasSlowMo {
+                Label("Slow Mo", systemImage: "tortoise.fill")
+            }
+        }
+        .foregroundStyle(.secondary)
+    }
+
+    @ViewBuilder
+    private func tag(_ style: PlayerChip.Style) -> some View {
+        if let player = clip.player {
+            PlayerChip(player: player, style: style)
+                .font(.caption)
+        }
     }
 
     private var times: String {

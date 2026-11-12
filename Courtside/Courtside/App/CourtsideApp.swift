@@ -11,7 +11,7 @@ struct CourtsideApp: App {
         // Before the parts schema first opens the store (decision 0022).
         StorageManager.backUpStoreBeforeParts(storeURL: ModelConfiguration().url)
         do {
-            container = try ModelContainer(for: Game.self, GamePart.self, Mark.self, Clip.self, SuggestedMoment.self)
+            container = try ModelContainer(for: Game.self, GamePart.self, Mark.self, Clip.self, SuggestedMoment.self, Player.self)
         } catch {
             fatalError("Could not open the game database: \(error)")
         }

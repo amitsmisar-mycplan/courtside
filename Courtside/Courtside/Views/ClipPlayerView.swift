@@ -13,6 +13,8 @@ struct ClipPlayerView: View {
     @State private var showTrim = false
     @State private var exportSession: ClipExportSession?
     @State private var shareSession: ClipShareSession?
+    @State private var addingPlayer = false
+    @Query(sort: \Player.name) private var players: [Player]
 
     private enum Version: Hashable {
         case original
@@ -57,6 +59,11 @@ struct ClipPlayerView: View {
         .sheet(item: $shareSession, onDismiss: { looper.load(currentURL) }) { session in
             ShareProgressSheet(session: session)
         }
+        .addPlayerAlert(isPresented: $addingPlayer) { name, number in
+            if let player = Player.add(name: name, number: number, in: modelContext) {
+                Player.tag([clip], with: player, in: modelContext)
+            }
+        }
         .sheet(isPresented: $showSlowMo) {
             SlowMoSheet(clip: clip, modelContext: modelContext)
         }
@@ -88,11 +95,19 @@ struct ClipPlayerView: View {
     /// Photos with Share and Delete beside it when they fit, else under it.
     private var controls: some View {
         VStack(spacing: 8) {
-            Text(details)
-                .font(.subheadline)
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            // The player tag sits on the info line, so the video keeps its height (decision 0030):
+            // its name, else "#7", else its color dot. The chip is drawn over a placeholder with no
+            // height, so the line is exactly as tall as its text. Only text too large for one line
+            // puts the tag on its own row.
+            ViewThatFits(in: .horizontal) {
+                infoLine(tag: .name)
+                infoLine(tag: .short)
+                infoLine(tag: .icon)
+                VStack(spacing: 8) {
+                    detailsText
+                    playerTag(style: .name)
+                }
+            }
 
             if clip.hasSlowMo {
                 Picker("Version", selection: $version) {
@@ -151,6 +166,39 @@ struct ClipPlayerView: View {
             }
         }
         .controlSize(.large)
+    }
+
+    private func infoLine(tag style: PlayerChip.Style) -> some View {
+        HStack(spacing: 10) {
+            detailsText
+                .fixedSize()
+            PlayerChip(player: clip.player, style: style, isPlaceholder: true)
+                .font(.subheadline)
+                .hidden()
+        }
+        .overlay(alignment: .trailing) { playerTag(style: style) }
+    }
+
+    private var detailsText: some View {
+        Text(details)
+            .font(.subheadline)
+            .monospacedDigit()
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+    }
+
+    /// Who is in the clip: a chip that opens the player menu, with Add Player inline.
+    private func playerTag(style: PlayerChip.Style) -> some View {
+        Menu {
+            PlayerTagMenuItems(players: players, current: clip.player, showsUntag: clip.player != nil) { player in
+                Player.tag([clip], with: player, in: modelContext)
+            } add: {
+                addingPlayer = true
+            }
+        } label: {
+            PlayerChip(player: clip.player, style: style)
+                .font(.subheadline)
+        }
     }
 
     private var trimButton: some View {

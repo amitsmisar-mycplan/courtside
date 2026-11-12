@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 struct SettingsView: View {
@@ -8,6 +9,10 @@ struct SettingsView: View {
     @AppStorage(LabelSettings.myTeamKey) private var myTeam = ""
     @AppStorage(LabelSettings.exportLabelKey) private var exportLabel = ExportLabelMode.openAndClose
     @AppStorage(LabelSettings.labelledQualityKey) private var labelledQuality = LabelledExportQuality.hd1080
+    @AppStorage(PlayerSettings.myPlayerKey) private var myPlayerRaw = ""
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Player.name) private var players: [Player]
+    @State private var addingPlayer = false
 
     var body: some View {
         NavigationStack {
@@ -52,12 +57,16 @@ struct SettingsView: View {
                 } footer: {
                     Text("New games start with your team; change it on any game. Saved and shared clips show the team, opponent, tournament and date for a few seconds at the start and end. Never the score. Adding a label re-makes the video: 1080p is several times faster than full quality for 4K clips.")
                 }
+                playersSection
                 Section {
                     Button("Restore Defaults") {
                         preRoll = ClipWindow.defaultPreRoll
                         postRoll = ClipWindow.defaultPostRoll
                     }
                 }
+            }
+            .addPlayerAlert(isPresented: $addingPlayer) { name, number in
+                Player.add(name: name, number: number, in: modelContext)
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -66,6 +75,39 @@ struct SettingsView: View {
                     Button("Done") { dismiss() }
                 }
             }
+        }
+    }
+
+    /// Player tags (decision 0030): My Player, then each player to edit or delete.
+    private var playersSection: some View {
+        Section {
+            Picker("My Player", selection: $myPlayerRaw) {
+                Text("None").tag("")
+                ForEach(players) { player in
+                    Text(player.fullLabel).tag(player.id.uuidString)
+                }
+            }
+            ForEach(players) { player in
+                NavigationLink {
+                    PlayerEditor(player: player)
+                } label: {
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(player.color.color)
+                            .frame(width: 12, height: 12)
+                        Text(player.fullLabel)
+                        Spacer()
+                        Text(player.clips.count == 1 ? "1 clip" : "\(player.clips.count) clips")
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                }
+            }
+            Button("Add Player", systemImage: "plus") { addingPlayer = true }
+        } header: {
+            Text("Players")
+        } footer: {
+            Text("Tag clips with who's in them, then filter a game's clips to My Player. Names and numbers stay on this phone; they aren't added to saved or shared videos.")
         }
     }
 }

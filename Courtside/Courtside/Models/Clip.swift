@@ -24,6 +24,8 @@ import SwiftData
     var game: Game?
     /// The video this clip was cut from (decision 0022). Use `resolvedPart`.
     var part: GamePart?
+    /// Who is in the clip (decision 0030). Nil is untagged; deleting the player untags it.
+    var player: Player?
 
     init(
         id: UUID = UUID(),
