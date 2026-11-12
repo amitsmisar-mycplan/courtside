@@ -33,9 +33,16 @@ enum StorageManager {
             .appending(path: "Thumbnails", directoryHint: .isDirectory)
     }
 
+    /// What "Find Moments" has heard so far in each part's video, so a scan cut short resumes
+    /// (decision 0029). Numbers only, no audio; removed when the scan finishes or the video goes.
+    static var momentScansDirectory: URL {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appending(path: "MomentScans", directoryHint: .isDirectory)
+    }
+
     /// Creates the directories and excludes game/clip storage from iCloud backup.
     static func prepareDirectories() {
-        for directory in [gamesDirectory, clipsDirectory, thumbnailsDirectory, exportsDirectory] {
+        for directory in [gamesDirectory, clipsDirectory, thumbnailsDirectory, exportsDirectory, momentScansDirectory] {
             do {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             } catch {
@@ -105,6 +112,10 @@ enum StorageManager {
         clipURL(filename: clip.filename)
     }
 
+    static func momentScanURL(forPartID id: UUID) -> URL {
+        momentScansDirectory.appending(path: "\(id.uuidString).json", directoryHint: .notDirectory)
+    }
+
     static func thumbnailURL(forClipID id: UUID) -> URL {
         thumbnailsDirectory.appending(path: "\(id.uuidString).jpg", directoryHint: .notDirectory)
     }
@@ -156,6 +167,7 @@ enum StorageManager {
     @MainActor static func deleteGame(_ game: Game, in context: ModelContext) {
         for part in game.parts {
             removeFile(at: videoURL(for: part))
+            removeMomentScan(forPartID: part.id)
         }
         for clip in game.clips {
             removeClipFiles(clip)
@@ -205,8 +217,41 @@ enum StorageManager {
         for part in parts where part.isVideoAvailable {
             removeFile(at: videoURL(for: part))
             part.isVideoAvailable = false
+            removeMoments(of: part, in: context)
         }
         save(context)
+    }
+
+    // MARK: Find Moments (decision 0029)
+
+    /// A part's suggestions and saved scan, without saving: they only mean something while its
+    /// video is there to make clips from.
+    @MainActor static func removeMoments(of part: GamePart, in context: ModelContext) {
+        for moment in part.suggestions { context.delete(moment) }
+        part.momentsFoundAt = nil
+        removeMomentScan(forPartID: part.id)
+    }
+
+    /// What a scan cut short had heard, or nil (none, unreadable, or an older format).
+    static func loadMomentScan(forPartID id: UUID) -> MomentSignal? {
+        guard let data = try? Data(contentsOf: momentScanURL(forPartID: id)),
+              let signal = try? JSONDecoder().decode(MomentSignal.self, from: data),
+              signal.version == MomentSignal.currentVersion
+        else { return nil }
+        return signal
+    }
+
+    static func saveMomentScan(_ signal: MomentSignal, forPartID id: UUID) {
+        do {
+            let data = try JSONEncoder().encode(signal)
+            try data.write(to: momentScanURL(forPartID: id), options: .atomic)
+        } catch {
+            log.error("Could not save the moment scan: \(error.localizedDescription)")
+        }
+    }
+
+    static func removeMomentScan(forPartID id: UUID) {
+        removeFile(at: momentScanURL(forPartID: id))
     }
 
     /// Adds an imported video to `game` as its next part.
@@ -311,11 +356,19 @@ enum StorageManager {
             if !fileExists(at: videoURL(for: part)) {
                 log.error("Video missing for part \(part.id); marking unavailable")
                 part.isVideoAvailable = false
+                removeMoments(of: part, in: context)
             } else if let expiresAt = part.videoExpiresAt, expiresAt <= now {
                 log.info("Video for part \(part.id) passed retention; deleting")
                 removeFile(at: videoURL(for: part))
                 part.isVideoAvailable = false
+                removeMoments(of: part, in: context)
             }
+        }
+        // A scan whose part is gone (deleted mid-scan) has nothing left to resume.
+        let scanning = Set(parts.filter(\.isVideoAvailable).map { "\($0.id.uuidString).json" })
+        for url in (try? FileManager.default.contentsOfDirectory(at: momentScansDirectory, includingPropertiesForKeys: nil)) ?? []
+        where !scanning.contains(url.lastPathComponent) {
+            removeFile(at: url)
         }
         save(context)
     }

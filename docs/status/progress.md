@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-11-11_
+_Last updated: 2026-11-12_
 
 | Step | What | Status |
 |---|---|---|
@@ -105,6 +105,15 @@ holds before the first and after the last, and never pans faster than one window
 exactly as before. Points are stored per clip (new optional field, lightweight migration), follow the clip through
 trims and slow mo, and go through the same `ExportComposer` path ([0028](../decisions/0028-aim-keyframes.md)). Built on
 `feature/aim-keyframes`; Simulator-verified on "Courtside Tests" and "Courtside Tests SE".
+
+**Feature: Find Moments** — a game part's sound is analyzed on the phone for cheering, applause, shouting and crowd
+noise (Apple's built-in sound classifier, approved for this feature, plus loudness), and the moments that stand out
+from that video's own noise floor are listed for review: at least 20 s apart, none within 13 s of an existing mark, at
+most 20 per hour. Each one plays its clip window; Accept adds an ordinary mark (clips made the usual way), Dismiss hides
+it, Undo reverses either. Scans are cancellable and resume where they stopped; no audio is kept. New `SuggestedMoment`
+model and a `GamePart` field (lightweight migration) ([0029](../decisions/0029-find-moments.md)). Built on
+`feature/find-moments`; Simulator-verified on "Courtside Tests SE"; real-footage results in
+[testing](../testing/simulator-verification.md#find-moments). Needs the speed and usefulness check on the iPhone.
 
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 

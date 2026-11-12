@@ -31,3 +31,4 @@ One file per decision that deviates from or extends the spec. Add new ones with 
 | [0025](0025-bigger-video.md) | Video takes most of the Clip and Trim screens; Save, Share, Delete share a row when they fit | Accepted |
 | [0026](0026-ultra-wide-lens.md) | Record with the 0.5× ultra-wide lens by default; 0.5× / 1× choice before recording, remembered | Accepted |
 | [0028](0028-aim-keyframes.md) | Aim points for Vertical exports: the window glides between up to 5 moments, eased and speed-capped | Accepted |
+| [0029](0029-find-moments.md) | Find Moments: suggest highlights from a part's sound (on-device sound classifier, approved deviation from "no AI") | Accepted |

@@ -8,6 +8,8 @@ struct GameDetailView: View {
 
     /// The part being marked (decision 0022); Part 1 for a game with one video.
     @State private var markingPart: GamePart?
+    /// The part whose "Find Moments" screen is open (decision 0029).
+    @State private var momentsPart: GamePart?
     @State private var showPhotosPicker = false
     @State private var photosSelection: PhotosPickerItem?
     @State private var showFileImporter = false
@@ -74,6 +76,12 @@ struct GameDetailView: View {
             if !game.extractableMarks.isEmpty { showProcessing = true }
         }) { part in
             PlaybackMarkingView(game: game, part: part, modelContext: modelContext)
+        }
+        .fullScreenCover(item: $momentsPart, onDismiss: {
+            // Accepted moments are ordinary marks: their clips are made the usual way.
+            if !game.extractableMarks.isEmpty { showProcessing = true }
+        }) { part in
+            MomentsView(part: part, modelContext: modelContext)
         }
         .photosPicker(
             isPresented: $showPhotosPicker,
@@ -204,6 +212,8 @@ struct GameDetailView: View {
                 .disabled(!game.isVideoAvailable)
             }
 
+            findMoments
+
             let pending = game.extractableMarks.count
             if pending > 0 {
                 Button {
@@ -226,6 +236,43 @@ struct GameDetailView: View {
             .buttonStyle(.bordered)
             .controlSize(.large)
         }
+    }
+
+    /// Listens to a part's sound for crowd reactions (decision 0029). With several parts, pick one.
+    @ViewBuilder
+    private var findMoments: some View {
+        let parts = game.orderedParts.filter(\.isVideoAvailable)
+        if parts.count > 1 || game.hasSeveralParts {
+            Menu {
+                ForEach(parts) { part in
+                    Button(momentsMenuTitle(for: part)) { momentsPart = part }
+                }
+            } label: {
+                Label("Find Moments", systemImage: "waveform")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .disabled(parts.isEmpty)
+        } else {
+            let part = parts.first
+            let pending = part?.pendingSuggestionCount ?? 0
+            Button {
+                momentsPart = part
+            } label: {
+                Label(pending > 0 ? "Review \(pending) \(pending == 1 ? "Moment" : "Moments")" : "Find Moments",
+                      systemImage: "waveform")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .disabled(part == nil)
+        }
+    }
+
+    private func momentsMenuTitle(for part: GamePart) -> String {
+        let pending = part.pendingSuggestionCount
+        return pending > 0 ? "\(part.title) · \(pending) to review" : part.title
     }
 
     /// One row per video, in the order added; tap one to mark it.
