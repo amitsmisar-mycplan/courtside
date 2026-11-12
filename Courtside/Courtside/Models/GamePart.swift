@@ -19,9 +19,13 @@ import SwiftData
     var isVideoAvailable: Bool
     /// When clips were last made from this part. Starts this part's 7-day auto-delete clock.
     var processedAt: Date?
+    /// When "Find Moments" last finished listening to this video (decision 0029); nil if never.
+    var momentsFoundAt: Date?
     var game: Game?
     @Relationship(deleteRule: .nullify, inverse: \Mark.part) var marks: [Mark]
     @Relationship(deleteRule: .nullify, inverse: \Clip.part) var clips: [Clip]
+    /// "Find Moments" results (decision 0029); they go with the part.
+    @Relationship(deleteRule: .cascade, inverse: \SuggestedMoment.part) var suggestions: [SuggestedMoment] = []
 
     init(
         id: UUID = UUID(),

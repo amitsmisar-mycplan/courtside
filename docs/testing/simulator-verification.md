@@ -332,6 +332,62 @@ right with the label over the video. Photos add-only access was granted on this 
 answer). Not seen in the UI: the "Zoom limited by video quality" note, since this Simulator has no landscape clip under
 4K; it's covered by the session test. The three saved videos are left in that Simulator's Photos.
 
+## Find Moments — 2026-11-12, "Courtside Tests" (iPhone 17 Pro) and "Courtside Tests SE" (iPhone SE 3rd gen), iOS 27
+
+Unit tests (`FindMomentsTests`, 15). Peak picking on synthetic per-second signals:
+- A steady crowd, digital silence and an empty signal suggest nothing.
+- Each cheer is found at its peak.
+- Two cheers 12 s apart give one suggestion (the stronger); 25 s apart give two.
+- A mark within 13 s hides a cheer, exactly at the 13 s edge.
+- Each video is judged against its own floor: a gym with ten times the crowd level still finds a same-sized cheer; a
+  crowd that gets louder halfway gives at most one suggestion at the step and still finds a cheer on top; a tiny wobble
+  in a quiet video is not a moment.
+- Loudness alone finds moments when the classifier hears nothing, and breaks ties between equal cheers.
+- The list is capped at 20 per hour, strongest kept, in time order; 2 for a 5-minute video, 1 for a 1-minute one.
+- Each suggestion is labelled with what was loudest.
+
+Storage and behavior:
+- A store from before this change opens with the game, part, mark and clip unchanged and no suggestions. Suggestions
+  survive a reopen, and deleting the game deletes them.
+- Accept makes an ordinary pending mark in that part (the clip pipeline picks it up; no clip is made). Accepting twice,
+  or accepting a dismissed or video-less moment, does nothing. Undo removes the accepted mark, but not once its clip
+  exists. Saving a second time keeps accepted and dismissed moments and adds nothing near them.
+- Deleting a part's video removes its suggestions and saved scan.
+
+Real scans of a generated 400 s soundtrack (quiet murmur, loud bursts at 40 s and 95 s):
+- The listener reads it whole; stopped part way it returns only whole seconds; resumed from 70 s it matches the whole
+  read.
+- `MomentFinder` finds the two bursts, saves them, and removes its saved scan. A second scan can't start while one runs.
+- Background time running out pauses the scan, hands the time back at once and saves what was heard; starting again
+  finishes it.
+- A video with no sound says so.
+
+Real footage (`FindMomentsCorpusTests`, the classifier's 303 labels, all 8 used ones present):
+
+| Video | Length | Time | Per min | Suggested (time, sound, score) |
+|---|---|---|---|---|
+| Nov 1 `20261031_132814` | 16.2 min | 5.2 s | 0.32 s | 0:21 applause, 3:28 crowd, 4:10 shouting, 5:22 shouting, 7:04 crowd, 14:46 crowd |
+| Nov 1 `20261031_144105` | 6.2 min | 1.7 s | 0.28 s | 1:57 crowd, 3:25 crowd, 4:58 crowd |
+| Nov 1 `20261031_144828` | 11.2 min | 3.1 s | 0.27 s | 0:55 shouting, 4:55 crowd, 7:19 applause, 9:16 applause |
+| Nov 1 `20261031_150358` | 13.5 min | 3.8 s | 0.28 s | 8:06 crowd, 9:18 crowd, 11:04 crowd, 11:27 shouting, 12:13 crowd |
+| Nov 1 `20261031_151837` | 4.4 min | 1.2 s | 0.29 s | 1:14 crowd, 2:10 crowd |
+| **Nov 1 total** | 51.5 min | 15.1 s | 0.29 s | 20 |
+| Oct 4, 18 short clips | 27.0 min | 8.5 s | 0.31 s | 16 (e.g. DJI 103320: 2:15; DJI 103627: 1:40; phone 104520: 0:22) |
+| Sep 10 screen recording | — | — | — | no audio track: "This video has no sound" |
+
+Reference taps (Oct 4 test clips, located in their sources by sound): DJI 103320 0:23 and 1:14, DJI 103627 0:14 and
+1:28, phone 104520 0:14. One suggestion lands near one (0:22 vs 0:14, 8 s late). See
+[0029](../decisions/0029-find-moments.md#results-on-the-corpus).
+
+In the app ("Courtside Tests SE"): imported `20261031_144105` (6:11, the portrait-tagged recording, so it plays sideways
+as everywhere else).
+- Find Moments showed "Listening for the crowd" with a progress bar ("4:47 of 6:11"), then 3 suggestions (1:57, 3:25,
+  4:58, "Crowd noise"), the first selected and looping its 10 s before / 3 s after window.
+- Accept on 1:57: "Added" with Undo, "2 to review · 1 added", and the next one selected and playing. Dismiss on 3:25,
+  then Undo: back to pending.
+- Done opened "Making clip 1 of 1" and the clip was made from the accepted mark: 1:47–2:00 (107–120 s), tap at 117 s, the default window; the other two stayed pending and no saved scan was left.
+- Fixed in the process: the preview's black background ran up under the navigation bar and hid the title.
+
 ## Aim points — 2026-11-11, "Courtside Tests" (iPhone 17 Pro) and "Courtside Tests SE" (iPhone SE 3rd gen), iOS 27
 
 Unit and export tests (`AimKeyframesTests`, 16): one point gives exactly the static framing and the same `ExportPlan` as a

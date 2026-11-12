@@ -1,6 +1,6 @@
 import AVFoundation
 
-/// Loops a single clip file.
+/// Loops a single clip file, or one stretch of a longer video (a suggested moment, decision 0029).
 @MainActor @Observable
 final class LoopingClipPlayer {
     @ObservationIgnored let player = AVQueuePlayer()
@@ -10,7 +10,8 @@ final class LoopingClipPlayer {
     /// Set when the clip can't be played, so the screen says so instead of staying black.
     private(set) var playbackFailed = false
 
-    func load(_ url: URL) {
+    /// Plays `url` on a loop: the whole file, or just `range` of it (seconds).
+    func load(_ url: URL, range: ClipWindow? = nil) {
         player.pause()
         looper?.disableLooping()
         statusObservation?.invalidate()
@@ -18,7 +19,12 @@ final class LoopingClipPlayer {
         playbackFailed = false
         // A fresh asset each time, so a clip re-exported in place is re-read from disk.
         let item = AVPlayerItem(asset: AVURLAsset(url: url))
-        let looper = AVPlayerLooper(player: player, templateItem: item)
+        let looper = range.map {
+            AVPlayerLooper(player: player, templateItem: item, timeRange: CMTimeRange(
+                start: CMTime(seconds: $0.start, preferredTimescale: 600),
+                end: CMTime(seconds: $0.end, preferredTimescale: 600)
+            ))
+        } ?? AVPlayerLooper(player: player, templateItem: item)
         self.looper = looper
         statusObservation = looper.observe(\.status, options: [.new]) { [weak self] looper, _ in
             guard looper.status == .failed else { return }

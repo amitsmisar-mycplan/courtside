@@ -36,6 +36,20 @@ Device: founder's son's iPhone (confirmed 2026-10-07).
 - [ ] With a slow-mo version showing: points land on the same moments, the glide through the slow part is slower
 - [ ] Largest text size: video shrinks, controls stack, Save Vertical reachable by scrolling
 
+## Find Moments ([decision 0029](../decisions/0029-find-moments.md))
+- [ ] Import a full game you didn't mark (60–90 min), open it, Find Moments: the progress bar moves and the time it
+      took is reasonable. **Note the minutes of video and how long it took** (the Simulator does about 0.3 s per minute;
+      the phone hasn't been measured)
+- [ ] Mid-scan, press Stop, then Find Moments again: it picks up near where it stopped, not from 0:00
+- [ ] Mid-scan, switch to another app for a minute and come back: it carries on (or says Paused, then carries on)
+- [ ] Go through the list: does each one play the right stretch? How many are plays you'd have tapped, how many are
+      the other team, timeouts, or nothing? Write the count down: it decides whether the threshold needs tuning
+- [ ] Accept a few, Dismiss a few, Undo one of each; Done → clips are made as usual; the clips cover the plays
+- [ ] Mark a few plays by hand first, then Find Moments on another game half: nothing is suggested within 13 s of them
+- [ ] A game with two parts: the button opens a menu of parts; each part has its own list
+- [ ] A game recorded in the app (not imported) works the same way
+- [ ] Largest text size: rows stack, Accept / Dismiss reachable, the video stays on top
+
 ## Background clip-making ([decision 0017](../decisions/0017-background-clip-resume.md))
 - [ ] Import a long game (10+ min), tap 8+ marks, Done → "Making clip 1 of 8"
 - [ ] After the first clip, switch to another app for 1 minute (use it; don't just lock the phone)
