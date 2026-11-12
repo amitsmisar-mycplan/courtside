@@ -33,3 +33,4 @@ One file per decision that deviates from or extends the spec. Add new ones with 
 | [0027](0027-tap-to-follow-spike.md) | Tap-to-follow tracking spike: debug-only screen, Apple Vision tracker, local results log | Experiment |
 | [0028](0028-aim-keyframes.md) | Aim points for Vertical exports: the window glides between up to 5 moments, eased and speed-capped | Accepted |
 | [0029](0029-find-moments.md) | Find Moments: suggest highlights from a part's sound (on-device sound classifier, approved deviation from "no AI") | Accepted |
+| [0030](0030-player-tags.md) | Player tags on clips: name, number, color; tag, filter, My Player (approved exception to the roster non-goal; covers tags and reels) | Accepted |

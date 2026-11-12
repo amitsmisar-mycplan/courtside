@@ -45,7 +45,10 @@ manual-testing device: don't build to it, install on it, or run tests on it. 'Co
   exports (decision 0021) and clips and trims at "Clip quality: 1080p" from footage over 1920 on the long side
   (decision 0023) may use the HEVC 1080p preset.
 - **Losing footage is the one unforgivable bug.** Never delete a complete game video that has no `Game` record — orphans are for step 7 recovery.
-- Non-goals (computer vision, stats, cloud/accounts, reels, rosters, Android/iPad/Watch) are out of scope.
+- Non-goals (computer vision, stats, cloud/accounts, rosters, Android/iPad/Watch) are out of scope.
+  Lightweight player tags (name, number, color on clips) and highlight reels are allowed. Rosters, teams, seasons, stats,
+  computer vision and cloud/accounts remain out of scope, except where a numbered decision record grants a specific
+  exception (see 0027 and 0029).
 
 ## Feature rules
 

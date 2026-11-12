@@ -50,6 +50,19 @@ Device: founder's son's iPhone (confirmed 2026-10-07).
 - [ ] A game recorded in the app (not imported) works the same way
 - [ ] Largest text size: rows stack, Accept / Dismiss reachable, the video stays on top
 
+## Player tags ([decision 0030](../decisions/0030-player-tags.md))
+- [ ] Open a clip: "Tag Player" sits beside the time line under the video; the video is the same size as before
+- [ ] Tap it → Add Player… → name and number → the clip shows the name chip; tap again → pick another player or Untag
+- [ ] Game page → Select → check several clips (in different parts, if the game has them) → Tag Player → pick one:
+      every checked clip shows the chip
+- [ ] Settings → Players → My Player → your kid; the game page shows All / My Player / Untagged / each other player;
+      My Player shows only their clips, Untagged only untagged ones
+- [ ] Close Courtside from the app switcher and reopen: the filter and My Player are as you left them
+- [ ] Settings → a player → Delete Player: their clips stay (untagged), nothing else changes
+- [ ] Largest text size: the Clip screen's tag moves under the time; rows show the tag (or "#7", or the dot); chips
+      scroll sideways
+- [ ] Save or share a tagged clip: the video has no player name on it
+
 ## Background clip-making ([decision 0017](../decisions/0017-background-clip-resume.md))
 - [ ] Import a long game (10+ min), tap 8+ marks, Done → "Making clip 1 of 8"
 - [ ] After the first clip, switch to another app for 1 minute (use it; don't just lock the phone)

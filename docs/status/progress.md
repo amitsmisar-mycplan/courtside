@@ -120,6 +120,15 @@ model and a `GamePart` field (lightweight migration) ([0029](../decisions/0029-f
 `feature/find-moments`; Simulator-verified on "Courtside Tests SE"; real-footage results in
 [testing](../testing/simulator-verification.md#find-moments). Needs the speed and usefulness check on the iPhone.
 
+**Feature: player tags** — a clip can be tagged with one player (name, optional jersey number, color); players are
+global. Tag from a chip on the Clip screen's info line (the video keeps its size: 563 pt / 431 pt as before) with
+"Add Player" inline, or several clips at once from the clip list's existing Select mode. A game's clips filter by All /
+My Player / Untagged / each player, remembered across launches; Settings → Players sets My Player and edits or deletes
+players (deleting one untags its clips, nothing else). New `Player` model and an optional `Clip.player` (lightweight
+migration). Approved exception to the roster non-goal, which also covers highlight reels
+([0030](../decisions/0030-player-tags.md)). Built on `feature/player-tag`; Simulator-verified on "Courtside Tests" and
+"Courtside Tests SE".
+
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).

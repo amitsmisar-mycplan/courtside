@@ -53,6 +53,10 @@ Explicitly do NOT build these. They are later phases.
 - Cloud storage, sync, sign-in, accounts
 - Reel stitching, music, transitions, text overlays
 - Team rosters, schedules, multi-player support
+
+> **Note (2026-11-12):** the founder approved two exceptions to this list: lightweight player tags (name, number and
+> color on clips) and highlight reels. See [decision 0030](../decisions/0030-player-tags.md). Everything else here stays
+> out of scope unless a numbered decision record grants a specific exception (0027, 0029).
 - Android, iPad-specific layouts, Apple Watch, widgets
 
 ## Platform targets
