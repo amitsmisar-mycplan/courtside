@@ -14,6 +14,8 @@ struct ClipPlayerView: View {
     @State private var exportSession: ClipExportSession?
     @State private var shareSession: ClipShareSession?
     @State private var addingPlayer = false
+    /// Just saved a slow-mo version: say where it went (shown over the video, so the layout stays put).
+    @State private var slowMoJustSaved = false
     @Query(sort: \Player.name) private var players: [Player]
 
     private enum Version: Hashable {
@@ -38,6 +40,11 @@ struct ClipPlayerView: View {
                     if looper.playbackFailed {
                         PlaybackFailedNotice(subject: "clip")
                             .padding(12)
+                    }
+                }
+                .overlay(alignment: .bottom) {
+                    if slowMoJustSaved {
+                        slowMoSavedNotice
                     }
                 }
         } controls: {
@@ -65,7 +72,13 @@ struct ClipPlayerView: View {
             }
         }
         .sheet(isPresented: $showSlowMo) {
-            SlowMoSheet(clip: clip, modelContext: modelContext)
+            SlowMoSheet(clip: clip, modelContext: modelContext) {
+                version = .slowMo
+                withAnimation { slowMoJustSaved = true }
+                AccessibilityNotification.Announcement(
+                    "Slow mo saved with this clip. Tap Save to Photos to add it to your camera roll."
+                ).post()
+            }
         }
         .sheet(isPresented: $showTrim, onDismiss: {
             // A saved trim replaced the file in place; read it fresh.
@@ -177,6 +190,28 @@ struct ClipPlayerView: View {
                 .hidden()
         }
         .overlay(alignment: .trailing) { playerTag(style: style) }
+    }
+
+    private var slowMoSavedNotice: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+                .accessibilityHidden(true)
+            Text("Slow mo saved with this clip. Tap Save to Photos to add it to your camera roll.")
+                .font(.subheadline)
+                .foregroundStyle(.white)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .background(.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 12))
+        .padding(10)
+        .transition(.opacity)
+        .onTapGesture { withAnimation { slowMoJustSaved = false } }
+        .accessibilityElement(children: .combine)
+        .task {
+            try? await Task.sleep(for: .seconds(8))
+            withAnimation { slowMoJustSaved = false }
+        }
     }
 
     private var detailsText: some View {

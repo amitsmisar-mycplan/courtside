@@ -4,6 +4,8 @@ import SwiftUI
 struct SlowMoSheet: View {
     let clip: Clip
     let modelContext: ModelContext
+    /// Called after a successful save, before the sheet closes, so the clip screen can say so.
+    var onSaved: () -> Void = {}
 
     @Environment(\.dismiss) private var dismiss
     @State private var session: SlowMoSession?
@@ -13,7 +15,10 @@ struct SlowMoSheet: View {
         NavigationStack {
             Group {
                 if let session {
-                    SlowMoEditor(session: session, modelContext: modelContext, showPreview: $showPreview) { dismiss() }
+                    SlowMoEditor(session: session, modelContext: modelContext, showPreview: $showPreview) {
+                        onSaved()
+                        dismiss()
+                    }
                 } else {
                     ProgressView()
                 }
@@ -129,32 +134,62 @@ private struct SlowMoEditor: View {
                 ) { start, end in
                     session.setSegment(start: start, end: end)
                 }
-                Text(summary)
+                Text("Drag the circles to choose what slows down. The yellow line is your tap.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(summary)
+                    .font(.subheadline)
                     .monospacedDigit()
             }
 
-            HStack(spacing: 12) {
-                Button {
-                    showPreview = true
-                } label: {
-                    Label("Preview", systemImage: "play.fill").frame(maxWidth: .infinity)
+            // Preview takes what it needs and Save the rest; stacked when they don't fit (large text).
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) {
+                    previewButton(stacked: false)
+                    saveButton(stacked: false)
                 }
-                .buttonStyle(.bordered)
-                Button {
-                    Task {
-                        if await session.render(context: modelContext) { onRendered() }
-                    }
-                } label: {
-                    Label("Save", systemImage: "tortoise.fill").frame(maxWidth: .infinity)
+                VStack(spacing: 10) {
+                    saveButton(stacked: true)
+                    previewButton(stacked: true)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(!session.canRender)
             }
             .controlSize(.large)
             .disabled(session.isRendering)
+
+            // Saving here doesn't touch the camera roll; say where it goes and how to get it there.
+            Text("Saved with this clip. Use Save to Photos on the clip screen to put it in your camera roll.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    /// Side by side the labels stay on one line (so the row only fits when they do); stacked they
+    /// may wrap rather than be cut off.
+    private func previewButton(stacked: Bool) -> some View {
+        Button {
+            showPreview = true
+        } label: {
+            Label("Preview", systemImage: "play.fill")
+                .lineLimit(stacked ? nil : 1)
+                .frame(maxWidth: stacked ? .infinity : nil)
+        }
+        .buttonStyle(.bordered)
+    }
+
+    private func saveButton(stacked: Bool) -> some View {
+        Button {
+            Task {
+                if await session.render(context: modelContext) { onRendered() }
+            }
+        } label: {
+            Label("Save Slow Mo", systemImage: "tortoise.fill")
+                .lineLimit(stacked ? nil : 1)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled(!session.canRender)
     }
 
     /// A still at the tap, at the clip's real shape; tapping it opens the full-screen preview.
@@ -172,12 +207,13 @@ private struct SlowMoEditor: View {
                 if session.frameRate == .loading {
                     ProgressView().tint(.white)
                 } else {
-                    Label("Preview", systemImage: "play.fill")
-                        .font(.headline)
+                    // A small play icon only: the Preview button below says it in words.
+                    Image(systemName: "play.fill")
+                        .font(.title3)
+                        .dynamicTypeSize(...DynamicTypeSize.xLarge)
                         .foregroundStyle(.white)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 10)
-                        .background(.black.opacity(0.6), in: Capsule())
+                        .frame(width: 48, height: 48)
+                        .background(.black.opacity(0.55), in: Circle())
                 }
             }
             .aspectRatio(session.aspectRatio ?? 16 / 9, contentMode: .fit)
@@ -187,15 +223,15 @@ private struct SlowMoEditor: View {
         }
         .buttonStyle(.plain)
         .disabled(session.isRendering || session.availableSpeeds.isEmpty)
-        .accessibilityLabel("Preview full screen")
+        .accessibilityLabel("Preview")
+        .accessibilityHint("Plays the slow mo full screen")
     }
 
+    /// Plain words: how long the slow part is, how long the saved video plays, and its size.
     private var summary: String {
-        let segment = session.segment
-        return String(
-            format: "%.1f–%.1f s of the clip plays at %@ · whole video plays as %.0f s · about %@",
-            segment.start, segment.end, session.speed.label, session.outputDuration,
-            Format.bytes(session.estimatedFileSize)
+        String(
+            format: "Slow part: %.1f s. Final video: %.0f s. About %@.",
+            session.segment.duration, session.outputDuration, Format.bytes(session.estimatedFileSize)
         )
     }
 }
@@ -265,12 +301,23 @@ private struct SegmentEditor: View {
             HStack {
                 Text("0:00")
                 Spacer()
-                Label("tap", systemImage: "hand.tap").labelStyle(.titleAndIcon).foregroundStyle(.yellow)
-                Spacer()
                 Text(Format.duration(duration.rounded(.up)))
             }
             .font(.caption2)
             .foregroundStyle(.secondary)
+            // "your tap", centred under the yellow line (kept inside the timeline at its ends).
+            GeometryReader { geometry in
+                let width = geometry.size.width - handleSize
+                let x = handleSize / 2 + width * mark / max(duration, 0.001)
+                Text("your tap")
+                    .font(.caption2.weight(.semibold))
+                    // The marker's yellow, darkened enough to read on white.
+                    .foregroundStyle(Color(red: 0.7, green: 0.55, blue: 0))
+                    .fixedSize()
+                    .position(x: min(max(x, 28), geometry.size.width - 28), y: 8)
+            }
+            .frame(height: 16)
+            .accessibilityHidden(true)
         }
     }
 

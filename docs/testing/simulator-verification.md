@@ -332,6 +332,23 @@ right with the label over the video. Photos add-only access was granted on this 
 answer). Not seen in the UI: the "Zoom limited by video quality" note, since this Simulator has no landscape clip under
 4K; it's covered by the session test. The three saved videos are left in that Simulator's Photos.
 
+## Clearer Slow Mo and Vertical screens — 2026-11-17, "Courtside Tests" (iPhone 17 Pro) and "Courtside Tests SE", iOS 27
+
+Copy and layout only: no export, model, storage or timing change, so no new unit tests; the full suite still passes.
+Screenshots of both screens were taken on main first and again on this branch, at default and the largest text size
+(data backed up first and restored afterwards; the one slow-mo render made during the check deleted).
+- **Slow Mo** (17 Pro, 30 fps clip; SE, 60 fps clip): the video shows only a play icon (capped size, so it stays inside
+  its circle at the largest text); Preview and "Save Slow Mo" share a row, Preview at its own width, and stack full width
+  at the largest text instead of truncating. The summary reads "Slow part: 3.5 s. Final video: 16 s. About 2.8 MB." (SE)
+  and the hint and the "your tap" label sit under the timeline, "your tap" under the yellow line (kept inside the
+  timeline when the tap is at an end).
+- **After Save Slow Mo** (17 Pro): back on the clip with Slow Mo selected and the note over the bottom of the video,
+  which fades after 8 s; the video box doesn't move (the note is drawn over it).
+- **Vertical** (17 Pro, 4K landscape; SE, low-resolution landscape): titled "Vertical Video"; outside the frame at 70 %
+  dark with a 3 pt outline; "Only the bright part is kept." on the picture (capped size, one line); the two numbered
+  steps; "Add Aim Point" turns into "Delete Aim Point" on a point; SE shows "This video's quality limits zoom to 36%."
+  The video box is the same height as on main in every case (SE default 192 pt; largest text 160 pt, the minimum).
+
 ## Find Moments review layout — 2026-11-17, "Courtside Tests" (iPhone 17 Pro) and "Courtside Tests SE", iOS 27
 
 Unit tests (`MomentReviewSessionTests`, 8): opening selects the first pending moment; a decided moment stays listed

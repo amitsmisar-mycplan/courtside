@@ -135,6 +135,14 @@ and decided moments fade out of the list with an Undo bar ("Show N Reviewed" bri
 ([0031](../decisions/0031-moments-review-layout.md)). Built on `feature/moments-review-layout`; Simulator-verified on
 "Courtside Tests" and "Courtside Tests SE".
 
+**Clearer Slow Mo and Vertical screens** (copy and layout only) — Slow Mo: one Preview (a small play icon on the
+video plus the Preview button), "Save Slow Mo" with a line saying it's kept with the clip, a plain summary ("Slow part:
+3.5 s. Final video: 16 s. About 2.8 MB."), a hint under the handles and "your tap" under the yellow line; after saving,
+the clip shows its Slow Mo version with a note to use Save to Photos. Vertical: titled "Vertical Video", outside the frame
+darker with "Only the bright part is kept.", two numbered steps, "Add Aim Point" / "Delete Aim Point", and the zoom note
+names the limit ("This video's quality limits zoom to 36%."). Built on `feature/clearer-export-screens`; Simulator-verified
+on "Courtside Tests" and "Courtside Tests SE", before and after, default and largest text.
+
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).
