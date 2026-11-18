@@ -13,7 +13,8 @@ struct ExportSheet: View {
                 // The framing editor lays out its own margins (video first, decision 0025).
                 .padding(session.phase == .framing ? [] : .all)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .navigationTitle("Save to Photos")
+                // Framing is its own step; the saving states keep "Save to Photos".
+                .navigationTitle(session.phase == .framing ? "Vertical Video" : "Save to Photos")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
@@ -161,8 +162,16 @@ private struct VerticalFramingEditor: View {
                     pointButton
                 }
             }
-            Text(hint).font(.footnote).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("1. Drag the frame to aim it.")
+                Text("2. To follow a moving play, scrub ahead, tap Add Aim Point, and drag again.")
+                if let status {
+                    Text(status).foregroundStyle(.primary)
+                }
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -190,14 +199,14 @@ private struct VerticalFramingEditor: View {
             Button(role: .destructive) {
                 session.deletePoint()
             } label: {
-                Label("Delete Point", systemImage: "trash")
+                Label("Delete Aim Point", systemImage: "trash")
             }
             .buttonStyle(.bordered)
         } else {
             Button {
                 session.addPoint()
             } label: {
-                Label("Add Point", systemImage: "plus")
+                Label("Add Aim Point", systemImage: "plus")
             }
             .buttonStyle(.borderedProminent)
             .disabled(!session.canAddPoint)
@@ -219,23 +228,18 @@ private struct VerticalFramingEditor: View {
                 Text("Blurred background above and below the video.").font(.footnote).foregroundStyle(.secondary)
             }
             if session.isZoomLimited {
-                Label("Zoom limited by video quality", systemImage: "info.circle")
+                Label("This video's quality limits zoom to \(Int((session.maxZoom * 100).rounded()))%.", systemImage: "info.circle")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
         }
     }
 
-    private var hint: String {
-        if session.draft != nil { return "Tap Add Point to keep this aim." }
-        if session.aimKeys.count == 1 {
-            return session.isOnPoint || !session.canAddPoint
-                ? "Drag to aim the whole clip."
-                : "Drag to aim the whole clip. To follow the play, tap Add Point here and drag."
-        }
-        if session.isOnPoint { return "Drag to move this point's aim. The frame glides between points." }
-        if session.isAtPointLimit { return "Up to \(AimTrack.manualLimit) points. Tap a point to change or delete it." }
-        return "The frame glides between points. Drag to aim here, then tap Add Point."
+    /// A third line only when the state needs it: an aim not kept yet, or no more points allowed.
+    private var status: String? {
+        if session.draft != nil { return "Tap Add Aim Point to keep this aim." }
+        if session.isAtPointLimit { return "Up to \(AimTrack.manualLimit) aim points. Tap one on the timeline to change or delete it." }
+        return nil
     }
 
     private var preview: some View {
@@ -252,9 +256,9 @@ private struct VerticalFramingEditor: View {
                     path.addRect(CGRect(origin: .zero, size: size))
                     path.addRect(rect)
                 }
-                .fill(Color.black.opacity(0.55), style: FillStyle(eoFill: true))
+                .fill(Color.black.opacity(0.7), style: FillStyle(eoFill: true))
                 Path { path in path.addRect(rect) }
-                    .stroke(windowColor, style: StrokeStyle(lineWidth: 2, dash: session.draft != nil ? [8, 6] : []))
+                    .stroke(windowColor, style: StrokeStyle(lineWidth: 3, dash: session.draft != nil ? [8, 6] : []))
             }
             .frame(width: size.width, height: size.height)
             .clipped()
@@ -275,8 +279,23 @@ private struct VerticalFramingEditor: View {
         }
         .aspectRatio(ratio, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 10))
+        // Over the picture, so it costs the video no height.
+        .overlay(alignment: .bottom) {
+            Text("Only the bright part is kept.")
+                .font(.caption.weight(.semibold))
+                // Capped, so at large text it stays a small label instead of covering the picture.
+                .dynamicTypeSize(...DynamicTypeSize.xLarge)
+                .lineLimit(1)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(.black.opacity(0.6), in: Capsule())
+                .padding(8)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityLabel("Vertical frame over the clip. Drag to aim.")
+        .accessibilityLabel("Vertical frame over the clip. Only the bright part is kept. Drag the frame to aim it.")
     }
 
     /// Yellow on a point (what a drag changes), white while gliding between points.
@@ -344,7 +363,7 @@ private struct AimTimelineBar: View {
                     .onEnded { _ in session.endMove() }
             )
             .accessibilityElement()
-            .accessibilityLabel("Point at \(Format.duration(time))")
+            .accessibilityLabel("Aim point at \(Format.duration(time))")
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { session.selectPoint(index) }
     }

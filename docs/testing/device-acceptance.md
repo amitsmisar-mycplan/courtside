@@ -20,21 +20,32 @@ Device: founder's son's iPhone (confirmed 2026-10-07).
 - [ ] Record 1 minute on each lens; save a clip of each to Photos (Original) and check its info: 1080p and 60 fps
       (if the 0.5× clip is 30 fps, note the phone model; the app falls back to 30 fps when a lens has no 1080p 60 fps)
 - [ ] Refocus after switching: the picture sharpens and stays locked
-- [ ] Save a 0.5× clip as Vertical and zoom to the limit (77 %, "Zoom limited by video quality"): are players big and
+- [ ] Save a 0.5× clip as Vertical and zoom to the limit (77 %, "This video's quality limits zoom to 77%."): are players big and
       sharp enough to share?
 
 ## Aim points ([decision 0028](../decisions/0028-aim-keyframes.md))
 - [ ] Save a landscape clip as Vertical: the clip plays under the 9:16 window, one diamond at the start of the scrub bar;
       dragging aims the whole clip, as before
-- [ ] Scrub to where the play moves, Add Point, drag the window onto your player; add 1–2 more; Play: does the window
+- [ ] Scrub to where the play moves, Add Aim Point, drag the window onto your player; add 1–2 more; Play: does the window
       glide calmly and arrive on each point? Does any glide feel too slow or fall short?
-- [ ] Tap a diamond (jumps there, window yellow), drag it along the bar, Delete Point
+- [ ] Tap a diamond (jumps there, window yellow), drag it along the bar, Delete Aim Point
 - [ ] Save Vertical with 3 points: in Photos, does the saved video move exactly like the preview? Note the save time
       next to a one-point save of the same clip
 - [ ] Leave the sheet and come back, and force-quit and reopen: the points are still there
 - [ ] Trim the clip shorter, then open Vertical again: points inside stay on their moments, outside ones sit at the edges
 - [ ] With a slow-mo version showing: points land on the same moments, the glide through the slow part is slower
 - [ ] Largest text size: video shrinks, controls stack, Save Vertical reachable by scrolling
+
+## Clearer Slow Mo and Vertical screens
+- [ ] Slow Mo: one play icon on the video and one Preview button; "your tap" under the yellow line; the line under the
+      buttons says Save Slow Mo keeps it with the clip. The summary reads "Slow part: … Final video: … About …"
+- [ ] Save Slow Mo → back on the clip, Slow Mo is selected and the note says to tap Save to Photos; it fades after a few
+      seconds. In Photos, nothing new until you do
+- [ ] Vertical: titled "Vertical Video"; outside the frame is clearly darker, "Only the bright part is kept." on the
+      picture; the two numbered steps; Add Aim Point / Delete Aim Point; the zoom note names the limit
+- [ ] VoiceOver: the video reads "Preview", the buttons read "Save Slow Mo", "Add Aim Point", "Delete Aim Point"; the
+      slow-mo saved note is announced
+- [ ] Largest text size on both screens: nothing cut off, the video keeps its size
 
 ## Find Moments ([decision 0029](../decisions/0029-find-moments.md))
 - [ ] Import a full game you didn't mark (60–90 min), open it, Find Moments: the progress bar moves and the time it
