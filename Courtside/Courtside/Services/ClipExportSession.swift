@@ -36,8 +36,10 @@ final class ClipExportSession: Identifiable {
     let quality: LabelledExportQuality
     /// When the current render started, for the elapsed time on screen.
     private(set) var renderStartedAt: Date?
-    /// Vertical zoom for a landscape clip (decision 0024): one value for the whole export. Starts at the last zoom used.
-    private(set) var zoom = VerticalZoomSettings.lastZoom
+    /// Vertical zoom for a landscape clip (decision 0024): one value for the whole export. Starts at
+    /// Medium once the clip's size is known (decision 0032).
+    private(set) var zoom: Double = 0
+    @ObservationIgnored private var zoomSet = false
     /// Aim points on the source file's timeline, in time order (decision 0028). Always at least one;
     /// a clip without stored points starts with one, centered.
     private(set) var aimKeys: [AimPath.Key]
@@ -145,6 +147,38 @@ final class ClipExportSession: Identifiable {
     func setZoom(_ zoom: Double) {
         guard let sourceSize else { return }
         self.zoom = VerticalFraming(zoom: zoom).clamped(videoSize: sourceSize).zoom
+    }
+
+    // MARK: Framing presets (decision 0032)
+
+    /// Wide / Medium / Tight as they differ on this clip; fewer when its resolution can't zoom far.
+    var framingPresets: [FramingPreset] {
+        sourceSize.map { FramingPreset.distinct(videoSize: $0) } ?? []
+    }
+
+    /// The preset the zoom is on; nil after the Advanced slider moved it elsewhere.
+    var selectedPreset: FramingPreset? {
+        guard let sourceSize else { return nil }
+        return framingPresets.first { abs($0.zoom(videoSize: sourceSize) - zoom) < 0.005 }
+    }
+
+    func selectPreset(_ preset: FramingPreset) {
+        guard let sourceSize else { return }
+        setZoom(preset.zoom(videoSize: sourceSize))
+    }
+
+    /// The share of the clip's width the frame keeps, in percent rounded to 5 (for "Shows about 45%").
+    var widthSharePercent: Int {
+        guard let sourceSize else { return 100 }
+        let share = FramingPreset.widthShare(zoom: zoom, videoSize: sourceSize)
+        return Int((share * 20).rounded()) * 5
+    }
+
+    /// Tight, or one aim for the whole clip while the frame crops the sides: a player near an edge
+    /// can end up outside it.
+    var mayCutOffSides: Bool {
+        guard let sourceSize, FramingPreset.widthShare(zoom: zoom, videoSize: sourceSize) < 0.99 else { return false }
+        return selectedPreset == .tight || aimKeys.count == 1
     }
 
     // MARK: Aim points (decision 0028)
@@ -261,8 +295,11 @@ final class ClipExportSession: Identifiable {
 
     func load() async {
         sourceSize = try? await SlowMoComposer.displaySize(of: source)
-        guard canFrame else { return }
-        setZoom(zoom)
+        guard canFrame, let sourceSize else { return }
+        if !zoomSet {
+            zoomSet = true
+            zoom = FramingPreset.starting(videoSize: sourceSize).zoom(videoSize: sourceSize)
+        }
         await preview.load(source)
         // One point: the middle of the clip, as before. More: the first point.
         preview.seek(to: aimKeys.count == 1 ? preview.duration / 2 : aimKeys[0].time)
@@ -281,8 +318,6 @@ final class ClipExportSession: Identifiable {
     func export(_ format: ExportFormat) {
         guard !isBusy else { return }
         if format == .vertical, canFrame {
-            // Offered again as the starting zoom next time.
-            VerticalZoomSettings.lastZoom = zoom
             preview.pause()
         }
         self.format = format

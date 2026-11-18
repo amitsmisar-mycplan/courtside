@@ -332,6 +332,24 @@ right with the label over the video. Photos add-only access was granted on this 
 answer). Not seen in the UI: the "Zoom limited by video quality" note, since this Simulator has no landscape clip under
 4K; it's covered by the session test. The three saved videos are left in that Simulator's Photos.
 
+## Framing presets — 2026-11-17, "Courtside Tests" (iPhone 17 Pro) and "Courtside Tests SE", iOS 27
+
+Unit tests (`FramingPresetTests`, 6; `VerticalZoomTests` and `AimKeyframesTests` updated for the Medium default): Wide
+keeps 2/3 and Medium 1/2 of the width on 4K and 1080p (zooms 0.231 and 0.463 on 0024's scale, the same window the export
+uses); Tight is `maxZoom` (1.0 for 4K at 31.6 %, 0.771 for 1080p at 37.5 %); 720p offers Wide and Medium (Medium held at
+the 0.362 cap), a 320×180 clip Wide alone; a 2560×1080 clip still lands on its shares. The session starts at Medium, reads
+50 / 65 / 40 % for Medium / Wide / Tight on 1080p (45 % at the old 60 % default), warns with one aim point or on Tight and
+not when the whole width shows, deselects the choice when Advanced moves the zoom, starts at Medium again after a save,
+and keeps one zoom for the whole export.
+
+In the app (data backed up first and restored afterwards; before screenshots are main's, from the clearer-screens check):
+- 17 Pro, 4K landscape clip: Medium selected, "Shows about 50% of the court width.", the side warning; Wide 65 %, Tight
+  30 %. Advanced opens the slider at 46 % for Medium. Video box 612 px tall, as before (613).
+- SE, low-resolution landscape clip: Wide and Medium only (Medium is the clip's limit, 55 %). Video box 385 px, as before.
+  A version that added "as close as this video's quality allows" to the readout wrapped to two lines and cost the video
+  17 pt, so that note stays under Advanced.
+- Largest text, both: the video at its 160 pt minimum as before; the segmented labels stay at their system size.
+
 ## Clearer Slow Mo and Vertical screens — 2026-11-17, "Courtside Tests" (iPhone 17 Pro) and "Courtside Tests SE", iOS 27
 
 Copy and layout only: no export, model, storage or timing change, so no new unit tests; the full suite still passes.

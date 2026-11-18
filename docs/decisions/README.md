@@ -35,3 +35,4 @@ One file per decision that deviates from or extends the spec. Add new ones with 
 | [0029](0029-find-moments.md) | Find Moments: suggest highlights from a part's sound (on-device sound classifier, approved deviation from "no AI") | Accepted |
 | [0030](0030-player-tags.md) | Player tags on clips: name, number, color; tag, filter, My Player (approved exception to the roster non-goal; covers tags and reels) | Accepted |
 | [0031](0031-moments-review-layout.md) | Find Moments review: taller zoomed preview, full screen (tap or turn sideways), decided moments fade out with Undo | Accepted |
+| [0032](0032-framing-presets.md) | Vertical framing: Wide / Medium / Tight on 0024's zoom scale, default Medium, readout and side warning, slider under Advanced | Accepted |

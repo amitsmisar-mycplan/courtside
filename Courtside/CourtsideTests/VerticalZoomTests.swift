@@ -11,16 +11,13 @@ final class VerticalZoomTests: XCTestCase {
     private static let canvas = ExportFormat.verticalRenderSize
     private let label = LabelStep.LabelText(team: "Eagles", opponent: "Lakers", tournament: "Fall Classic", date: .now)
     private var files: [URL] = []
-    private var savedZoom: Any?
 
     override func setUp() async throws {
         StorageManager.prepareDirectories()
         LabelledExportCache.shared.removeAll()
-        savedZoom = UserDefaults.standard.object(forKey: VerticalZoomSettings.lastZoomKey)
     }
 
     override func tearDown() async throws {
-        UserDefaults.standard.set(savedZoom, forKey: VerticalZoomSettings.lastZoomKey)
         LabelledExportCache.shared.removeAll()
         files.forEach { try? FileManager.default.removeItem(at: $0) }
     }
@@ -99,22 +96,16 @@ final class VerticalZoomTests: XCTestCase {
         XCTAssertEqual(ExportPlan(source: url, format: .vertical, label: nil, framing: VerticalFraming(zoom: 1)).verticalFraming?.zoom, 1)
     }
 
-    func testLastZoomDefaultsTo60() {
-        UserDefaults.standard.removeObject(forKey: VerticalZoomSettings.lastZoomKey)
-        XCTAssertEqual(VerticalZoomSettings.lastZoom, 0.6)
-        VerticalZoomSettings.lastZoom = 0.25
-        XCTAssertEqual(VerticalZoomSettings.lastZoom, 0.25)
-    }
-
     // MARK: The sheet's session
 
     func testLandscapeClipAsksForZoomAndPortraitDoesNot() async throws {
-        UserDefaults.standard.removeObject(forKey: VerticalZoomSettings.lastZoomKey)
         let landscape = ClipExportSession(clipID: UUID(), source: try await makeBanded(size: Self.hd), photos: Photos())
         await landscape.load()
         XCTAssertTrue(landscape.canFrame)
         XCTAssertGreaterThan(landscape.preview.duration, 0, "the clip plays under the window")
-        XCTAssertEqual(landscape.framing.zoom, 0.6, "default 60 %, centered")
+        XCTAssertEqual(landscape.framing.zoom, FramingPreset.medium.zoom(videoSize: Self.hd), accuracy: 0.0001,
+                       "starts at Medium, centered (decision 0032)")
+        XCTAssertEqual(landscape.selectedPreset, .medium)
         XCTAssertEqual(landscape.framing.center, CGPoint(x: 0.5, y: 0.5))
         landscape.choose(.vertical)
         XCTAssertEqual(landscape.phase, .framing)
@@ -136,7 +127,7 @@ final class VerticalZoomTests: XCTestCase {
         await portrait.finish()
     }
 
-    func testSavingRemembersTheZoom() async throws {
+    func testEachVerticalStartsAtMediumWhateverWasSavedLast() async throws {
         let photos = Photos()
         let session = ClipExportSession(clipID: UUID(), source: try await makeBanded(size: Self.hd, seconds: 1), photos: photos)
         await session.load()
@@ -144,10 +135,9 @@ final class VerticalZoomTests: XCTestCase {
         session.export(.vertical)
         await session.finish()
         XCTAssertEqual(session.phase, .saved(.vertical))
-        XCTAssertEqual(VerticalZoomSettings.lastZoom, 0.3, accuracy: 0.0001)
         let next = ClipExportSession(clipID: UUID(), source: session.source, photos: photos)
         await next.load()
-        XCTAssertEqual(next.framing.zoom, 0.3, accuracy: 0.0001, "next default")
+        XCTAssertEqual(next.selectedPreset, .medium, "Medium every time, not the last zoom saved (decision 0032)")
     }
 
     func testShareStillUsesOriginal() async throws {

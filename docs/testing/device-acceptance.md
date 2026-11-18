@@ -20,8 +20,7 @@ Device: founder's son's iPhone (confirmed 2026-10-07).
 - [ ] Record 1 minute on each lens; save a clip of each to Photos (Original) and check its info: 1080p and 60 fps
       (if the 0.5× clip is 30 fps, note the phone model; the app falls back to 30 fps when a lens has no 1080p 60 fps)
 - [ ] Refocus after switching: the picture sharpens and stays locked
-- [ ] Save a 0.5× clip as Vertical and zoom to the limit (77 %, "This video's quality limits zoom to 77%."): are players big and
-      sharp enough to share?
+- [ ] Save a 0.5× clip as Vertical with Tight (the 77 % limit on 1080p): are players big and sharp enough to share?
 
 ## Aim points ([decision 0028](../decisions/0028-aim-keyframes.md))
 - [ ] Save a landscape clip as Vertical: the clip plays under the 9:16 window, one diamond at the start of the scrub bar;
@@ -46,6 +45,16 @@ Device: founder's son's iPhone (confirmed 2026-10-07).
 - [ ] VoiceOver: the video reads "Preview", the buttons read "Save Slow Mo", "Add Aim Point", "Delete Aim Point"; the
       slow-mo saved note is announced
 - [ ] Largest text size on both screens: nothing cut off, the video keeps its size
+
+## Framing presets ([decision 0032](../decisions/0032-framing-presets.md))
+- [ ] Save a landscape clip as Vertical: Medium is selected, "Shows about 50% of the court width."
+- [ ] Wide / Medium / Tight on a real play: which one keeps your player in frame without cutting the others off? Save
+      one of each and compare in Photos
+- [ ] With one aim point the side warning shows; add a second point and it goes away (except on Tight)
+- [ ] Advanced: the slider still works; moving it deselects the choice; Save uses that zoom
+- [ ] A 1080p clip (default clip quality): three choices, Tight is the 77 % limit. A clip from 720p footage: Wide and
+      Medium only
+- [ ] VoiceOver reads "Framing, Medium" and the readout; largest text size: nothing cut off
 
 ## Find Moments ([decision 0029](../decisions/0029-find-moments.md))
 - [ ] Import a full game you didn't mark (60–90 min), open it, Find Moments: the progress bar moves and the time it
