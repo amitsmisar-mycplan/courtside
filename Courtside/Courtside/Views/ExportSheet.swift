@@ -141,6 +141,7 @@ private struct VerticalFramingEditor: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
+                .disabled(session.isFindingAction)
             }
         }
     }
@@ -162,9 +163,14 @@ private struct VerticalFramingEditor: View {
                     pointButton
                 }
             }
+            Toggle(isOn: Binding(
+                get: { session.isAutoFollowing || session.isFindingAction },
+                set: { session.setAutoFollow($0) }
+            )) {
+                Text("Auto-follow").font(.subheadline.weight(.semibold))
+            }
             VStack(alignment: .leading, spacing: 2) {
-                Text("1. Drag the frame to aim it.")
-                Text("2. To follow a moving play, scrub ahead, tap Add Aim Point, and drag again.")
+                autoFollowNote
                 if let status {
                     Text(status).foregroundStyle(.primary)
                 }
@@ -172,6 +178,26 @@ private struct VerticalFramingEditor: View {
             .font(.footnote)
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// One line about auto-follow (decision 0033); the hand-aiming steps when it's off.
+    @ViewBuilder
+    private var autoFollowNote: some View {
+        switch session.autoFollow {
+        case .finding(let progress):
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.mini)
+                Text("Finding the action… \(Int((progress * 100).rounded()))%").monospacedDigit()
+            }
+            .accessibilityElement(children: .combine)
+        case .on:
+            Text("Follows the action automatically. Adjust if it's off.")
+        case .failed:
+            Text("Couldn't find the action in this clip, so the frame is centered.")
+        case .off:
+            Text("1. Drag the frame to aim it.")
+            Text("2. To follow a moving play, scrub ahead, tap Add Aim Point, and drag again.")
         }
     }
 

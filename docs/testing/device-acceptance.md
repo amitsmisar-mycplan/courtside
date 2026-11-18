@@ -56,6 +56,20 @@ Device: founder's son's iPhone (confirmed 2026-10-07).
       Medium only
 - [ ] VoiceOver reads "Framing, Medium" and the readout; largest text size: nothing cut off
 
+## Auto-follow ([decision 0033](../decisions/0033-auto-follow.md)) — at a real game, on a tripod if you can
+- [ ] Film a few minutes from a tripod, make clips as usual, then Save to Photos → Vertical on 3 or 4 of them (one with
+      the shot at the far basket on each side): Auto-follow is on, "Finding the action…" shows for a few seconds, then
+      "Follows the action automatically." Note roughly how long it took for a 13 s clip
+- [ ] Play each one in the preview: does the frame keep the shooter and the play around them? Save one and compare it in
+      Photos with the same clip saved with Auto-follow off. **Write down how many were better, same, worse**
+- [ ] The switch flips with a single tap (the Simulator needed a swipe; check a finger works)
+- [ ] Drag the frame on one: the switch goes off and the points stay where they were, now yours to adjust
+- [ ] Turn it off: the frame goes back to the middle; close and reopen Vertical: it's still off for that clip
+- [ ] Wide / Medium / Tight with Auto-follow on: the frame still follows, wider or tighter
+- [ ] Do the same on a clip from a recorded game and an imported one: both behave the same
+- [ ] After a dozen clips, does the phone feel warm, or is the battery noticeably lower than usual?
+- [ ] Delete a clip you used: nothing else changes (its saved scan goes with it)
+
 ## Find Moments ([decision 0029](../decisions/0029-find-moments.md))
 - [ ] Import a full game you didn't mark (60–90 min), open it, Find Moments: the progress bar moves and the time it
       took is reasonable. **Note the minutes of video and how long it took** (the Simulator does about 0.3 s per minute;

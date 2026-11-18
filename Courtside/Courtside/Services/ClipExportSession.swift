@@ -48,6 +48,22 @@ final class ClipExportSession: Identifiable {
     /// Plays the source under the window, for aiming at any moment.
     let preview = ScrubPlayer()
 
+    /// Auto-follow (decision 0033): the points come from where the motion is.
+    enum AutoFollow: Equatable {
+        case off
+        /// Scanning the clip, 0...1.
+        case finding(Double)
+        case on
+        /// The scan failed; the aim is centered.
+        case failed
+    }
+
+    private(set) var autoFollow: AutoFollow = .off
+    /// Whether the points were made by auto-follow; a hand edit makes them manual (decision 0033).
+    private(set) var aimOrigin: AimTrack.Origin
+    var isAutoFollowing: Bool { aimOrigin == .automatic }
+    var isFindingAction: Bool { if case .finding = autoFollow { true } else { false } }
+
     /// Converts stored points (game-video seconds) to the source's seconds; nil when the session
     /// isn't tied to a stored clip (then points aren't saved).
     let timeline: AimTimeline?
@@ -57,6 +73,15 @@ final class ClipExportSession: Identifiable {
     @ObservationIgnored private var task: Task<Void, Never>?
     /// True while a drag has changed a stored point, so it's saved when the drag ends.
     @ObservationIgnored private var aimChanged = false
+    /// Auto-follow starts by itself for a clip with no stored aim.
+    @ObservationIgnored private let followsByDefault: Bool
+    @ObservationIgnored private let hasStoredAim: Bool
+    /// True once the parent has turned auto-follow off (or set points by hand) for this clip, so a
+    /// centered aim is stored as a choice and auto-follow doesn't come back on next time.
+    @ObservationIgnored private var autoDeclined: Bool
+    /// Where the motion is in the source, once scanned.
+    @ObservationIgnored private var motion: [MotionSample]?
+    @ObservationIgnored private var autoTask: Task<Void, Never>?
 
     init(
         clipID: UUID,
@@ -66,6 +91,7 @@ final class ClipExportSession: Identifiable {
         aimTrack: AimTrack? = nil,
         timeline: AimTimeline? = nil,
         saveAim: (@MainActor (AimTrack?) -> Void)? = nil,
+        followsByDefault: Bool = false,
         photos: PhotoLibrarySaving = PhotoLibraryService()
     ) {
         self.clipID = clipID
@@ -79,6 +105,11 @@ final class ClipExportSession: Identifiable {
             aimTrack?.points.map { AimPath.Key(time: timeline.fileTime($0.time), center: CGPoint(x: $0.x, y: $0.y ?? 0.5)) }
         }
         aimKeys = stored.flatMap { $0.isEmpty ? nil : $0 } ?? [AimPath.Key(time: 0, center: CGPoint(x: 0.5, y: 0.5))]
+        aimOrigin = aimTrack?.origin ?? .manual
+        // A stored centered aim is only kept when auto-follow was turned off for the clip.
+        autoDeclined = aimTrack.map { $0.origin == .manual && $0.points.count == 1 } ?? false
+        hasStoredAim = aimTrack != nil
+        self.followsByDefault = followsByDefault
     }
 
     /// The session for a stored clip: its aim points are loaded and saved back as they change.
@@ -94,7 +125,8 @@ final class ClipExportSession: Identifiable {
             saveAim: { track in
                 clip.aimTrack = track
                 try? context.save()
-            }
+            },
+            followsByDefault: AutoFollowSettings.isOnByDefault
         )
     }
 
@@ -147,6 +179,8 @@ final class ClipExportSession: Identifiable {
     func setZoom(_ zoom: Double) {
         guard let sourceSize else { return }
         self.zoom = VerticalFraming(zoom: zoom).clamped(videoSize: sourceSize).zoom
+        // How far the window may stray and how fast it may move depend on the zoom.
+        if isAutoFollowing, motion != nil { applyAutoFollow(persist: false) }
     }
 
     // MARK: Framing presets (decision 0032)
@@ -165,6 +199,7 @@ final class ClipExportSession: Identifiable {
     func selectPreset(_ preset: FramingPreset) {
         guard let sourceSize else { return }
         setZoom(preset.zoom(videoSize: sourceSize))
+        if isAutoFollowing, motion != nil { persistAim() }
     }
 
     /// The share of the clip's width the frame keeps, in percent rounded to 5 (for "Shows about 45%").
@@ -178,7 +213,90 @@ final class ClipExportSession: Identifiable {
     /// can end up outside it.
     var mayCutOffSides: Bool {
         guard let sourceSize, FramingPreset.widthShare(zoom: zoom, videoSize: sourceSize) < 0.99 else { return false }
-        return selectedPreset == .tight || aimKeys.count == 1
+        return selectedPreset == .tight || (aimKeys.count == 1 && !isAutoFollowing && !isFindingAction)
+    }
+
+    // MARK: Auto-follow (decision 0033)
+
+    /// The switch: on scans the clip (or uses the saved scan) and replaces the points with ones that
+    /// follow the motion; off goes back to one centered aim, as before auto-follow.
+    func setAutoFollow(_ on: Bool) {
+        guard canFrame else { return }
+        if on {
+            autoDeclined = false
+            startAutoFollow()
+        } else {
+            autoTask?.cancel()
+            autoTask = nil
+            autoFollow = .off
+            aimOrigin = .manual
+            autoDeclined = true
+            draft = nil
+            aimKeys = [AimPath.Key(time: 0, center: CGPoint(x: 0.5, y: 0.5))]
+            persistAim()
+        }
+    }
+
+    /// Waits for the scan in progress (tests).
+    func finishAutoFollow() async {
+        await autoTask?.value
+    }
+
+    private func startAutoFollow() {
+        autoTask?.cancel()
+        draft = nil
+        if motion != nil {
+            applyAutoFollow(persist: true)
+            return
+        }
+        autoFollow = .finding(0)
+        let source = source, clipID = clipID, caches = timeline != nil
+        // The scan reports from its own thread; the percentage is shown here.
+        let session = self
+        let report: @Sendable (Double) -> Void = { value in
+            Task { @MainActor in
+                if case .finding = session.autoFollow { session.autoFollow = .finding(value) }
+            }
+        }
+        autoTask = Task { [weak self] in
+            let samples: [MotionSample]
+            if caches, let saved = StorageManager.loadMotionScan(forClipID: clipID, source: source) {
+                samples = saved
+            } else {
+                do {
+                    samples = try await MotionScanQueue.shared.scan(source, progress: report)
+                } catch {
+                    guard !Task.isCancelled, let self else { return }
+                    Self.log.error("Auto-follow scan failed: \(error.localizedDescription, privacy: .public)")
+                    self.autoFollow = .failed
+                    self.aimOrigin = .manual
+                    return
+                }
+                if caches { StorageManager.saveMotionScan(samples, forClipID: clipID, source: source) }
+            }
+            guard !Task.isCancelled, let self else { return }
+            self.motion = samples
+            self.applyAutoFollow(persist: true)
+        }
+    }
+
+    /// Points from the scan at the current zoom; they are the clip's aim points from then on.
+    private func applyAutoFollow(persist: Bool) {
+        guard let sourceSize, let motion else { return }
+        aimKeys = AutoAim.keys(from: motion, zoom: zoom, videoSize: sourceSize)
+        aimOrigin = .automatic
+        autoFollow = .on
+        if persist { persistAim() }
+    }
+
+    /// A hand edit: the points stay, as manual ones, and auto-follow stops changing them.
+    private func makeManual() {
+        guard aimOrigin == .automatic || isFindingAction else { return }
+        autoTask?.cancel()
+        autoTask = nil
+        aimOrigin = .manual
+        autoFollow = .off
+        autoDeclined = true
     }
 
     // MARK: Aim points (decision 0028)
@@ -213,6 +331,7 @@ final class ClipExportSession: Identifiable {
                 // Show the point's own moment while its aim moves.
                 preview.seek(to: aimKeys[index].time)
             }
+            makeManual()
             aimKeys[index].center = moved
             aimChanged = true
         } else {
@@ -229,13 +348,16 @@ final class ClipExportSession: Identifiable {
     func addPoint() {
         guard canAddPoint else { return }
         let time = preview.currentTime
-        aimKeys = AimPath(keys: aimKeys + [AimPath.Key(time: time, center: framing.center)]).keys
+        let center = framing.center
+        makeManual()
+        aimKeys = AimPath(keys: aimKeys + [AimPath.Key(time: time, center: center)]).keys
         draft = nil
         persistAim()
     }
 
     func deletePoint() {
         guard canDeletePoint, let index = selectedPoint else { return }
+        makeManual()
         aimKeys.remove(at: index)
         persistAim()
     }
@@ -253,6 +375,7 @@ final class ClipExportSession: Identifiable {
         let low = index > 0 ? aimKeys[index - 1].time + Self.pointTolerance : 0
         let high = index < aimKeys.count - 1 ? aimKeys[index + 1].time - Self.pointTolerance : preview.duration
         guard low <= high else { return }
+        makeManual()
         aimKeys[index].time = min(max(time, low), high)
         aimChanged = true
         seek(to: aimKeys[index].time)
@@ -269,19 +392,23 @@ final class ClipExportSession: Identifiable {
         preview.togglePlay()
     }
 
-    /// Saves the points to the clip: nil for one centered point, the same as no points at all.
+    /// Saves the points to the clip, marked auto or manual. One centered point is the same as no
+    /// points at all and stores nothing, unless auto-follow was turned off for this clip: then it's
+    /// stored as a manual choice, so auto-follow doesn't start again next time (decision 0033).
     private func persistAim() {
         aimChanged = false
         guard let timeline, let saveAim else { return }
         let isPlain = aimKeys.count == 1 && abs(aimKeys[0].center.x - 0.5) < 0.0005 && abs(aimKeys[0].center.y - 0.5) < 0.0005
-        saveAim(isPlain ? nil : AimTrack(points: aimKeys.map {
+        let origin: AimTrack.Origin = isAutoFollowing ? .automatic : .manual
+        saveAim(isPlain && origin == .manual && !autoDeclined ? nil : AimTrack(points: aimKeys.map {
             AimPoint(time: timeline.gameTime($0.time), x: $0.center.x, y: abs($0.center.y - 0.5) < 0.0005 ? nil : $0.center.y)
-        }))
+        }, origin: origin))
     }
 
     /// Back to the format list without saving.
     func cancelFraming() {
         if phase == .framing {
+            autoTask?.cancel()
             preview.pause()
             draft = nil
             phase = .choosing
@@ -303,6 +430,10 @@ final class ClipExportSession: Identifiable {
         await preview.load(source)
         // One point: the middle of the clip, as before. More: the first point.
         preview.seek(to: aimKeys.count == 1 ? preview.duration / 2 : aimKeys[0].time)
+        // Auto-follow: kept on for a clip it already follows, and on by itself for a clip with no aim yet.
+        if isAutoFollowing || (followsByDefault && !hasStoredAim && motion == nil) {
+            startAutoFollow()
+        }
     }
 
     /// Picking a format in the list: Vertical of a landscape clip goes to zoom and aim first.
@@ -330,9 +461,10 @@ final class ClipExportSession: Identifiable {
         task?.cancel()
     }
 
-    /// The sheet closed: stops the render and the preview.
+    /// The sheet closed: stops the render, the scan and the preview.
     func close() {
         cancel()
+        autoTask?.cancel()
         preview.stop()
     }
 

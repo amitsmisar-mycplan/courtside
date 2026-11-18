@@ -14,8 +14,8 @@ struct AimPoint: Codable, Hashable, Sendable {
 
 /// A clip's Vertical aim over time, stored on `Clip` (decision 0028). No track on the clip means
 /// one centered aim, as before. Points are in time order. The parent sets up to `manualLimit` by
-/// hand; a tracker could later fill in many more with `origin: .automatic`, and playback and export
-/// treat any number the same way.
+/// hand; auto-follow (decision 0033) sets up to as many with `origin: .automatic`, and a hand edit
+/// makes them manual. Playback and export treat both the same way.
 struct AimTrack: Codable, Hashable, Sendable {
     enum Origin: String, Codable, Sendable {
         case manual

@@ -1,6 +1,6 @@
 # Progress
 
-_Last updated: 2026-11-12_
+_Last updated: 2026-11-18_
 
 | Step | What | Status |
 |---|---|---|
@@ -148,6 +148,12 @@ the clip allows of the court width, on decision 0024's zoom scale), defaulting t
 of the court width." and a warning about players near the sides; the slider stays under Advanced
 ([0032](../decisions/0032-framing-presets.md)). Built on `feature/framing-presets`; Simulator-verified on "Courtside
 Tests" and "Courtside Tests SE".
+
+**Feature: auto-follow for Vertical** — on-device motion analysis (frame differencing with pan compensation) turns
+where the play is into aim points, on by default, with an Auto-follow switch; a hand edit makes the points manual
+([0033](../decisions/0033-auto-follow.md), an approved exception to the computer-vision non-goal, motion analysis only).
+Evaluated on 18 real moments: the play stayed in frame in 221 of 241 sampled frames against 167 for the center crop,
+worse in 1 moment. Built on `feature/auto-follow`; Simulator-verified on "Courtside Tests" and "Courtside Tests SE".
 
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 

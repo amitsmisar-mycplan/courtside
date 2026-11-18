@@ -40,9 +40,16 @@ enum StorageManager {
             .appending(path: "MomentScans", directoryHint: .isDirectory)
     }
 
+    /// Where the motion is in each clip file, for auto-follow (decision 0033). Numbers only, no
+    /// pictures; removed with the clip, its slow-mo version, or its game.
+    static var motionScansDirectory: URL {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appending(path: "MotionScans", directoryHint: .isDirectory)
+    }
+
     /// Creates the directories and excludes game/clip storage from iCloud backup.
     static func prepareDirectories() {
-        for directory in [gamesDirectory, clipsDirectory, thumbnailsDirectory, exportsDirectory, momentScansDirectory] {
+        for directory in [gamesDirectory, clipsDirectory, thumbnailsDirectory, exportsDirectory, momentScansDirectory, motionScansDirectory] {
             do {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             } catch {
@@ -114,6 +121,12 @@ enum StorageManager {
 
     static func momentScanURL(forPartID id: UUID) -> URL {
         momentScansDirectory.appending(path: "\(id.uuidString).json", directoryHint: .notDirectory)
+    }
+
+    /// One per clip file (the clip, or its slow-mo version), named after the clip so they can be
+    /// found and removed with it.
+    static func motionScanURL(forClipID id: UUID, sourceFilename: String) -> URL {
+        motionScansDirectory.appending(path: "\(id.uuidString)-\(sourceFilename).json", directoryHint: .notDirectory)
     }
 
     static func thumbnailURL(forClipID id: UUID) -> URL {
@@ -254,6 +267,45 @@ enum StorageManager {
         removeFile(at: momentScanURL(forPartID: id))
     }
 
+    // MARK: Auto-follow (decision 0033)
+
+    /// A clip file's saved motion scan, or nil (none, unreadable, an older format, or made from a
+    /// different file: a trim or a new slow-mo render replaces the file under the same name).
+    static func loadMotionScan(forClipID id: UUID, source: URL) -> [MotionSample]? {
+        let url = motionScanURL(forClipID: id, sourceFilename: source.lastPathComponent)
+        guard let data = try? Data(contentsOf: url),
+              let scan = try? JSONDecoder().decode(MotionScanFile.self, from: data),
+              scan.version == MotionScanFile.currentVersion,
+              scan.sourceFileSize == currentFileSize(at: source)
+        else { return nil }
+        return scan.samples
+    }
+
+    static func saveMotionScan(_ samples: [MotionSample], forClipID id: UUID, source: URL) {
+        let scan = MotionScanFile(sourceFileSize: currentFileSize(at: source), samples: samples)
+        do {
+            try FileManager.default.createDirectory(at: motionScansDirectory, withIntermediateDirectories: true)
+            try JSONEncoder().encode(scan).write(to: motionScanURL(forClipID: id, sourceFilename: source.lastPathComponent),
+                                                 options: .atomic)
+        } catch {
+            log.error("Could not save the motion scan: \(error.localizedDescription)")
+        }
+    }
+
+    /// The size on disk now: a `URL` can hold on to a size it read before the file was rewritten.
+    private static func currentFileSize(at url: URL) -> Int64 {
+        ((try? FileManager.default.attributesOfItem(atPath: url.path)[.size]) as? NSNumber)?.int64Value ?? 0
+    }
+
+    /// Every motion scan of the clip's files.
+    static func removeMotionScans(forClipID id: UUID) {
+        let prefix = "\(id.uuidString)-"
+        for url in (try? FileManager.default.contentsOfDirectory(at: motionScansDirectory, includingPropertiesForKeys: nil)) ?? []
+        where url.lastPathComponent.hasPrefix(prefix) {
+            removeFile(at: url)
+        }
+    }
+
     /// Adds an imported video to `game` as its next part.
     @MainActor @discardableResult
     static func addPart(_ video: ImportedVideo, to game: Game, in context: ModelContext) throws -> GamePart {
@@ -370,6 +422,12 @@ enum StorageManager {
         where !scanning.contains(url.lastPathComponent) {
             removeFile(at: url)
         }
+        // Motion scans of clips that are gone (decision 0033).
+        let clipIDs = Set(((try? context.fetch(FetchDescriptor<Clip>())) ?? []).map { "\($0.id.uuidString)-" })
+        for url in (try? FileManager.default.contentsOfDirectory(at: motionScansDirectory, includingPropertiesForKeys: nil)) ?? []
+        where !clipIDs.contains(String(url.lastPathComponent.prefix(37))) {
+            removeFile(at: url)
+        }
         save(context)
     }
 
@@ -382,6 +440,9 @@ enum StorageManager {
     /// Removes the slow-motion file and clears the fields without saving.
     static func removeSlowMoFile(of clip: Clip) {
         if let url = clip.slowMoURL { removeFile(at: url) }
+        if let filename = clip.slowMoFilename {
+            removeFile(at: motionScanURL(forClipID: clip.id, sourceFilename: filename))
+        }
         clip.slowMoFilename = nil
         clip.slowMoSpeed = nil
         clip.slowMoStartSeconds = nil
@@ -450,6 +511,7 @@ enum StorageManager {
         if let url = clip.slowMoURL { removeFile(at: url) }
         removeThumbnail(forClipID: clip.id)
         removeExports(forClipID: clip.id)
+        removeMotionScans(forClipID: clip.id)
     }
 
     @MainActor private static func save(_ context: ModelContext) {
