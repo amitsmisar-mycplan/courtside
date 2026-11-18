@@ -48,7 +48,12 @@ Device: founder's son's iPhone (confirmed 2026-10-07).
 - [ ] Mark a few plays by hand first, then Find Moments on another game half: nothing is suggested within 13 s of them
 - [ ] A game with two parts: the button opens a menu of parts; each part has its own list
 - [ ] A game recorded in the app (not imported) works the same way
-- [ ] Largest text size: rows stack, Accept / Dismiss reachable, the video stays on top
+- [ ] Largest text size: rows stack, Accept / Dismiss stack full width, the video stays on top
+- [ ] Review layout ([0031](../decisions/0031-moments-review-layout.md)): the preview fills about half the screen;
+      Accept → the row says Added, fades out, the next one plays; Undo in the bar brings it back
+- [ ] Tap the preview → full screen sideways; arrows step through; Accept / Dismiss there; the shrink button returns to
+      the list upright. Turn the phone sideways from the list → full screen; upright → the list
+- [ ] A game filmed with the phone upright: the preview shows the whole picture (not zoomed), full screen stays upright
 
 ## Player tags ([decision 0030](../decisions/0030-player-tags.md))
 - [ ] Open a clip: "Tag Player" sits beside the time line under the video; the video is the same size as before
