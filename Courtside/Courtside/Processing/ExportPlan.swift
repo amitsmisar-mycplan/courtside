@@ -151,8 +151,6 @@ struct VerticalFraming: Hashable, Sendable {
 
     /// Today's layout.
     static let fitWidth = VerticalFraming(zoom: 0, center: CGPoint(x: 0.5, y: 0.5))
-    /// The first default, before the parent has picked a zoom.
-    static let defaultZoom = 0.6
     /// How far a source pixel may be stretched before the picture goes soft.
     static let maxUpscale: CGFloat = 1.5
 
@@ -238,15 +236,5 @@ struct VerticalFraming: Hashable, Sendable {
     var rounded: VerticalFraming {
         func round(_ value: Double, _ step: Double) -> Double { (value / step).rounded() * step }
         return VerticalFraming(zoom: round(zoom, 0.01), center: CGPoint(x: round(center.x, 0.001), y: round(center.y, 0.001)))
-    }
-}
-
-/// The Vertical zoom the parent used last, offered again next time (decision 0024).
-enum VerticalZoomSettings {
-    static let lastZoomKey = "verticalLastZoom"
-
-    static var lastZoom: Double {
-        get { UserDefaults.standard.object(forKey: lastZoomKey) as? Double ?? VerticalFraming.defaultZoom }
-        set { UserDefaults.standard.set(min(max(newValue, 0), 1), forKey: lastZoomKey) }
     }
 }

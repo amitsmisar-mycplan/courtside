@@ -213,26 +213,65 @@ private struct VerticalFramingEditor: View {
         }
     }
 
+    /// Wide / Medium / Tight (decision 0032), what the frame keeps, and the exact zoom under Advanced.
     private var zoomControls: some View {
         VStack(alignment: .leading, spacing: 6) {
+            if session.framingPresets.count > 1 {
+                Picker("Framing", selection: Binding(
+                    get: { session.selectedPreset },
+                    set: { if let preset = $0 { session.selectPreset(preset) } }
+                )) {
+                    ForEach(session.framingPresets) { preset in
+                        Text(preset.title).tag(Optional(preset))
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+            Text(widthReadout)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if session.mayCutOffSides {
+                Label("Players near the sides may be cut off. Use Add Aim Point to follow the play.",
+                      systemImage: "exclamationmark.triangle")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if session.maxZoom >= 0.01 {
+                DisclosureGroup("Advanced") {
+                    advancedZoom
+                        .padding(.top, 6)
+                }
+                .font(.footnote)
+            }
+        }
+    }
+
+    /// One line, so the video keeps its height (decision 0025). The quality limit is under Advanced.
+    private var widthReadout: String {
+        "Shows about \(session.widthSharePercent)% of the court width."
+    }
+
+    /// The exact zoom slider of decision 0024, for anything between the presets.
+    private var advancedZoom: some View {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Zoom").font(.headline)
+                Text("Zoom").font(.subheadline.weight(.semibold))
                 Spacer()
                 Text("\(Int((session.zoom * 100).rounded()))%").monospacedDigit().foregroundStyle(.secondary)
             }
-            if session.maxZoom >= 0.01 {
-                Slider(value: Binding(get: { session.zoom }, set: { session.setZoom($0) }), in: 0...session.maxZoom)
-                    .accessibilityLabel("Zoom")
-            }
+            Slider(value: Binding(get: { session.zoom }, set: { session.setZoom($0) }), in: 0...session.maxZoom)
+                .accessibilityLabel("Zoom")
             if session.framingWindow.height > 1.001 {
-                Text("Blurred background above and below the video.").font(.footnote).foregroundStyle(.secondary)
+                Text("Blurred background above and below the video.").foregroundStyle(.secondary)
             }
             if session.isZoomLimited {
                 Label("This video's quality limits zoom to \(Int((session.maxZoom * 100).rounded()))%.", systemImage: "info.circle")
-                    .font(.footnote)
                     .foregroundStyle(.secondary)
             }
         }
+        .font(.footnote)
     }
 
     /// A third line only when the state needs it: an aim not kept yet, or no more points allowed.

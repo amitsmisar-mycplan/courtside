@@ -143,6 +143,12 @@ darker with "Only the bright part is kept.", two numbered steps, "Add Aim Point"
 names the limit ("This video's quality limits zoom to 36%."). Built on `feature/clearer-export-screens`; Simulator-verified
 on "Courtside Tests" and "Courtside Tests SE", before and after, default and largest text.
 
+**Framing presets for Vertical** — the zoom slider is replaced by Wide / Medium / Tight (two thirds, half, and as close as
+the clip allows of the court width, on decision 0024's zoom scale), defaulting to Medium each time, with "Shows about N%
+of the court width." and a warning about players near the sides; the slider stays under Advanced
+([0032](../decisions/0032-framing-presets.md)). Built on `feature/framing-presets`; Simulator-verified on "Courtside
+Tests" and "Courtside Tests SE".
+
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).

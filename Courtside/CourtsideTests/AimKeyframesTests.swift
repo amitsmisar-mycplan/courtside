@@ -119,16 +119,13 @@ final class AimKeyframesTests: XCTestCase {
     private static let hd = CGSize(width: 1920, height: 1080)
     private static let uhd = CGSize(width: 3840, height: 2160)
     private var files: [URL] = []
-    private var savedZoom: Any?
 
     override func setUp() async throws {
         StorageManager.prepareDirectories()
         LabelledExportCache.shared.removeAll()
-        savedZoom = UserDefaults.standard.object(forKey: VerticalZoomSettings.lastZoomKey)
     }
 
     override func tearDown() async throws {
-        UserDefaults.standard.set(savedZoom, forKey: VerticalZoomSettings.lastZoomKey)
         LabelledExportCache.shared.removeAll()
         files.forEach { try? FileManager.default.removeItem(at: $0) }
     }
@@ -367,11 +364,11 @@ final class AimKeyframesTests: XCTestCase {
     // MARK: The editor's session
 
     func testNewClipStartsWithOneCenteredPointAndAddsMore() async throws {
-        UserDefaults.standard.set(0.6, forKey: VerticalZoomSettings.lastZoomKey)
         var saved: [AimTrack?] = []
         let session = ClipExportSession(clipID: UUID(), source: try await banded(seconds: 6), timeline: AimTimeline(clipStart: 100),
                                         saveAim: { saved.append($0) }, photos: Photos())
         await session.load()
+        session.setZoom(0.6)
         XCTAssertEqual(session.aimKeys, [key(0, 0.5)], "one point, centered: today's export")
         XCTAssertEqual(session.preview.currentTime, 3, accuracy: 0.01, "opens on the middle, as before")
         XCTAssertTrue(session.canAddPoint)
