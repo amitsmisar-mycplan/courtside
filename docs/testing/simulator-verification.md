@@ -332,6 +332,26 @@ right with the label over the video. Photos add-only access was granted on this 
 answer). Not seen in the UI: the "Zoom limited by video quality" note, since this Simulator has no landscape clip under
 4K; it's covered by the session test. The three saved videos are left in that Simulator's Photos.
 
+## Find Moments review layout — 2026-11-17, "Courtside Tests" (iPhone 17 Pro) and "Courtside Tests SE", iOS 27
+
+Unit tests (`MomentReviewSessionTests`, 8): opening selects the first pending moment; a decided moment stays listed
+until it fades, then leaves, and the next pending one is selected; deciding the last one stops the preview; reopening
+with everything reviewed selects nothing; Undo brings a moment back, selects it and removes the mark Accept made;
+undoing the last reviewed one turns "Show Reviewed" off; deciding twice does nothing; the full-screen arrows step
+through the list, wrap, skip reviewed moments, and don't show for a single moment.
+
+In the app (data backed up first and restored afterwards; the imported videos deleted):
+- 17 Pro, `20261031_151837` (landscape, 4:21, 2 moments): the preview is 326 pt and filled (was a 280 pt box, 226 pt
+  picture). Accept → "Added", the row faded out, the next moment played, the Undo bar and "Show 1 Reviewed" appeared.
+- Full screen from the button: sideways, the whole picture, Accept moved on; with nothing left the picture dims with
+  "All reviewed" and Back to List. Turning the simulator sideways from the list opened full screen with the arrows;
+  next arrow, Dismiss (Undo bar at the top), the shrink button back to the list upright.
+- Reopening with both accepted: header "2 added", "All reviewed" in the list and the preview; Show 2 Reviewed → Undo
+  both → back to "2 to review".
+- SE, `20261031_144105` (tagged portrait, 6:11, 3 moments): the preview fits the whole portrait picture (267 pt box);
+  full screen stays upright. The picture itself is sideways, as it is on main: the file was filmed with the phone turned.
+- Largest text (SE): the preview is 30% of the height; Dismiss and Accept stack full width.
+
 ## Player tags — 2026-11-12, "Courtside Tests" (iPhone 17 Pro) and "Courtside Tests SE" (iPhone SE 3rd gen), iOS 27
 
 Unit tests (`PlayerTagTests`, 6):

@@ -9,6 +9,10 @@ final class LoopingClipPlayer {
 
     /// Set when the clip can't be played, so the screen says so instead of staying black.
     private(set) var playbackFailed = false
+    /// Width over height as the video is shown (its rotation applied); nil until known.
+    private(set) var aspectRatio: Double?
+    var isPortrait: Bool { (aspectRatio ?? 16 / 9) < 1 }
+    @ObservationIgnored private var shapeTask: Task<Void, Never>?
 
     /// Plays `url` on a loop: the whole file, or just `range` of it (seconds).
     func load(_ url: URL, range: ClipWindow? = nil) {
@@ -18,7 +22,17 @@ final class LoopingClipPlayer {
         player.removeAllItems()
         playbackFailed = false
         // A fresh asset each time, so a clip re-exported in place is re-read from disk.
-        let item = AVPlayerItem(asset: AVURLAsset(url: url))
+        let asset = AVURLAsset(url: url)
+        let item = AVPlayerItem(asset: asset)
+        shapeTask?.cancel()
+        shapeTask = Task { [weak self] in
+            guard let track = try? await asset.loadTracks(withMediaType: .video).first,
+                  let (size, transform) = try? await track.load(.naturalSize, .preferredTransform)
+            else { return }
+            let shown = size.applying(transform)
+            guard !Task.isCancelled, shown.height != 0 else { return }
+            self?.aspectRatio = abs(shown.width / shown.height)
+        }
         let looper = range.map {
             AVPlayerLooper(player: player, templateItem: item, timeRange: CMTimeRange(
                 start: CMTime(seconds: $0.start, preferredTimescale: 600),

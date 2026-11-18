@@ -129,6 +129,12 @@ migration). Approved exception to the roster non-goal, which also covers highlig
 ([0030](../decisions/0030-player-tags.md)). Built on `feature/player-tag`; Simulator-verified on "Courtside Tests" and
 "Courtside Tests SE".
 
+**Find Moments review layout** — the preview is taller (45% of the height; wide footage zoomed to fill it, portrait
+footage whole), tapping it or turning the phone sideways plays the moment full screen with Accept / Dismiss and arrows,
+and decided moments fade out of the list with an Undo bar ("Show N Reviewed" brings them back)
+([0031](../decisions/0031-moments-review-layout.md)). Built on `feature/moments-review-layout`; Simulator-verified on
+"Courtside Tests" and "Courtside Tests SE".
+
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).

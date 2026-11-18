@@ -34,3 +34,4 @@ One file per decision that deviates from or extends the spec. Add new ones with 
 | [0028](0028-aim-keyframes.md) | Aim points for Vertical exports: the window glides between up to 5 moments, eased and speed-capped | Accepted |
 | [0029](0029-find-moments.md) | Find Moments: suggest highlights from a part's sound (on-device sound classifier, approved deviation from "no AI") | Accepted |
 | [0030](0030-player-tags.md) | Player tags on clips: name, number, color; tag, filter, My Player (approved exception to the roster non-goal; covers tags and reels) | Accepted |
+| [0031](0031-moments-review-layout.md) | Find Moments review: taller zoomed preview, full screen (tap or turn sideways), decided moments fade out with Undo | Accepted |
