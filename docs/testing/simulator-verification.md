@@ -332,6 +332,39 @@ right with the label over the video. Photos add-only access was granted on this 
 answer). Not seen in the UI: the "Zoom limited by video quality" note, since this Simulator has no landscape clip under
 4K; it's covered by the session test. The three saved videos are left in that Simulator's Photos.
 
+## Auto-follow — 2026-11-18, "Courtside Tests" (iPhone 17 Pro) and "Courtside Tests SE", iOS 27
+
+**Unit tests** (`AutoFollowTests`, 15):
+- **Analyzer**, on synthetic textured frames: a mover on the left and on the right; two movers together; a group and a
+  lone mover; motion only in the edge strips (ignored, falls back to the center); no motion (center); a camera pan
+  undone, with a scoreboard fixed to the screen ignored.
+- **Aim points:** a play crossing the court becomes ≤ 5 eased points within the cap; a brief outlier is ignored; gaps
+  are filled; zoom 0 needs none.
+- **Cache:** checked against the file size; removed with the clip, the game and the slow-mo version; the launch sweep
+  removes strays.
+- **Sheet:** on by default for a clip with no aim; a drag or Add Aim Point turns the points manual; off stores one
+  centered point and stays off on reopening; off by default until switched on.
+- **Same scan path:** a queued scan matches a direct one.
+- **Existing suites pass unchanged:** `AimKeyframesTests`, `FramingPresetTests`, `VerticalZoomTests`.
+
+**Evaluation** (`AutoFollowEvaluationTests`, skipped unless `COURTSIDE_AUTOFOLLOW_EVAL` is set): 18 real moments
+exported at Medium with and without auto-follow. The table and the default decision are in
+[decision 0033](../decisions/0033-auto-follow.md#evaluation-the-default-rule). No media was kept.
+
+**Screens** (branch build; both Simulators' data backed up first and restored after; files match, text size back to
+Large, motion scans removed):
+- **On, 17 Pro.** The switch is on and the frame is aimed at the action. "Follows the action automatically. Adjust if
+  it's off." replaces the two steps, and the side warning is gone.
+- **Video box height.** 612 px on the 17 Pro, the same as on main.
+- **Wide.** It works too: the auto points are redone for the wider frame (2 points).
+- **Off.** The two steps and the warning come back, and the video box stays 612 px. The Simulator's synthetic tap
+  doesn't flip the new-style switch; a short swipe does. Check a real finger on the phone.
+- **SE (720p-class test clip).** Auto-follow aims at the moving dot. Wide / Medium only, "Shows about 55%". The video
+  box is 385 px (192 pt), the same as before.
+- **Largest text, both phones.** The video is at its 160 pt minimum and the page scrolls. "Auto-follow" and its line
+  wrap; nothing is cut off down to Save Vertical.
+- **VoiceOver.** The switch's label is "Auto-follow" (the `Toggle` label). The progress line reads as one element.
+
 ## Framing presets — 2026-11-17, "Courtside Tests" (iPhone 17 Pro) and "Courtside Tests SE", iOS 27
 
 Unit tests (`FramingPresetTests`, 6; `VerticalZoomTests` and `AimKeyframesTests` updated for the Medium default): Wide
