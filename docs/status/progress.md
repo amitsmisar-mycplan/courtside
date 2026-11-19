@@ -155,6 +155,16 @@ where the play is into aim points, on by default, with an Auto-follow switch; a 
 Evaluated on 18 real moments: the play stayed in frame in 221 of 241 sampled frames against 167 for the center crop,
 worse in 1 moment. Built on `feature/auto-follow`; Simulator-verified on "Courtside Tests" and "Courtside Tests SE".
 
+**Fix: recording flow** (three problems from a real game):
+- **Screen awake.** Auto-lock is held off through one helper, `ScreenAwake`, while the recording camera is up and the
+  app is in front. It was already off before, but four other screens switched it back on independently; now every
+  screen goes through the helper.
+- **Wake-up touch.** Taps are ignored for 1 s after the app comes back or the recording screen opens.
+- **Record again.** Stopping no longer strands the game: **Record Part N** on the finished screen, and in the game's
+  Add Video menu, adds the next part to the same game ([0034](../decisions/0034-record-more-parts.md)).
+
+Built on `fix/recording-flow`. Open question 5 (taps on the self-dimmed screen) is for the founder.
+
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).

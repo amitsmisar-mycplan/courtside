@@ -2,8 +2,11 @@ import SwiftData
 import SwiftUI
 
 /// Live recording from a tripod. The whole screen marks; stopping takes a deliberate 1-second hold.
+/// Opened from a game, or recorded again after a stop, the recording is that game's next part.
 struct RecordingView: View {
     let modelContext: ModelContext
+    /// The game to add a part to; nil records a new game.
+    var game: Game? = nil
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
@@ -29,18 +32,22 @@ struct RecordingView: View {
         .task {
             guard session == nil else { return }
             let controller = CaptureSessionController()
-            let session = RecordingSession(service: controller, context: modelContext)
+            let session = RecordingSession(service: controller, context: modelContext, game: game)
             self.controller = controller
             self.session = session
+            // The touch that opened this screen mustn't land as a mark.
+            session.ignoreTapsBriefly()
             await session.prepare(preflight: RecordingPreflight.current())
+            updateScreenAwake()
         }
-        .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
         .onDisappear {
-            UIApplication.shared.isIdleTimerDisabled = false
+            ScreenAwake.shared.release(.recording)
             restoreBrightness()
             session?.shutdown()
         }
         .onChange(of: scenePhase) { _, phase in
+            updateScreenAwake()
+            if phase == .active { session?.ignoreTapsBriefly() }
             if phase == .background { Task { await session?.handleBackground() } }
         }
         .onChange(of: session?.isDimmed ?? false) { _, dimmed in
@@ -48,10 +55,8 @@ struct RecordingView: View {
             if dimmed { lowerBrightness() } else { restoreBrightness() }
         }
         .onChange(of: session?.phase) { _, phase in
-            if phase == .finished {
-                UIApplication.shared.isIdleTimerDisabled = false
-                restoreBrightness()
-            }
+            updateScreenAwake()
+            if phase == .finished { restoreBrightness() }
         }
         .fullScreenCover(isPresented: $showProcessing, onDismiss: { dismiss() }) {
             if let game = session?.game {
@@ -80,6 +85,14 @@ struct RecordingView: View {
         case .finished:
             finished(session)
         }
+    }
+
+    /// Auto-lock stays off while the camera is up (waiting to start, recording, saving) and the app
+    /// is in front; it comes back when recording ends, the screen closes, or the app leaves.
+    private func updateScreenAwake() {
+        let phase = session?.phase
+        let cameraUp = phase == .ready || phase == .recording || phase == .finishing
+        ScreenAwake.shared.set(.recording, awake: cameraUp && scenePhase == .active)
     }
 
     // MARK: Before recording
@@ -276,6 +289,16 @@ struct RecordingView: View {
                             .padding(.horizontal, 8)
                     }
                     .buttonStyle(.borderedProminent)
+                }
+                if let game = session.game {
+                    // The next recording goes into the same game as its next part.
+                    Button {
+                        session.recordAgain()
+                    } label: {
+                        Label("Record Part \(game.nextPartIndex + 1)", systemImage: "record.circle")
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.red)
                 }
                 Button("Done") { dismiss() }
                     .buttonStyle(.bordered)

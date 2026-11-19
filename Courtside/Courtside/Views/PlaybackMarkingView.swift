@@ -65,11 +65,11 @@ struct PlaybackMarkingView: View {
                 session = MarkingSession(game: game, part: part, context: modelContext)
             }
             haptics.prepare()
-            UIApplication.shared.isIdleTimerDisabled = true
+            ScreenAwake.shared.hold(.playbackMarking)
             session?.player.play()
         }
         .onDisappear {
-            UIApplication.shared.isIdleTimerDisabled = false
+            ScreenAwake.shared.release(.playbackMarking)
             session?.tearDown()
         }
     }

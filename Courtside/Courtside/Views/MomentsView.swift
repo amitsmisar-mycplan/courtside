@@ -34,11 +34,11 @@ struct MomentsView: View {
         }
         .interactiveDismissDisabled(session.finder.phase == .running)
         .onAppear {
-            UIApplication.shared.isIdleTimerDisabled = true
+            ScreenAwake.shared.hold(.findMoments)
             session.appear()
         }
         .onDisappear {
-            UIApplication.shared.isIdleTimerDisabled = false
+            ScreenAwake.shared.release(.findMoments)
             session.close()
         }
         .onChange(of: scenePhase) { _, phase in

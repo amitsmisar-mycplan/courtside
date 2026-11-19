@@ -11,6 +11,22 @@ Device: founder's son's iPhone (confirmed 2026-10-07).
 - [ ] Start recording, swipe the app away (force-quit), reopen → the recording comes back as a game with its marks
 - [ ] Start recording, call the phone → recording stops, game is saved with an explanation
 
+## Recording flow fixes ([decision 0034](../decisions/0034-record-more-parts.md)) — on a tripod
+- [ ] **Screen stays on:** record for 20 minutes without touching the phone. It never locks, and recording is still
+      going at the end. (The app dims itself to near-black after 30 s idle, as before; that's not the lock.)
+- [ ] **Wake-up touch:** after a long idle stretch, switch to another app and back, or lock with the side button and
+      unlock. The first touch within a second of coming back adds no flag. Normal taps during play still flag
+      instantly.
+- [ ] **Dimmed screen:** touch the screen after it has dimmed itself. **Note whether that touch added a flag:** today
+      it does, by design. See open question 5
+- [ ] **Record again:** Start, stop after a few seconds, then tap **Record Part 2** on the finished screen and record
+      again. Done: one game with Part 1 and Part 2, and the flags from each recording are in their own part
+- [ ] **From the game page:** Add Video → **Record Part N** on an imported game and on a recorded one. The new part
+      shows in the same game
+- [ ] **Auto-lock comes back:** after stopping and tapping Done, leave the phone on the games list. It locks at your
+      usual auto-lock time. Same after the app was sent to the background mid-recording (recording stops and saves,
+      as before)
+
 ## Recording lens ([decision 0026](../decisions/0026-ultra-wide-lens.md))
 - [ ] First Record Game opens on 0.5× (highlighted); the preview shows about twice as much as 1×
 - [ ] Tap 1× and back to 0.5×: the preview switches within a second, stays upright, and Start Recording works after

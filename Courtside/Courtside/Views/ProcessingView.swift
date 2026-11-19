@@ -51,12 +51,12 @@ struct ProcessingView: View {
         .padding(24)
         .interactiveDismissDisabled()
         .onAppear {
-            UIApplication.shared.isIdleTimerDisabled = true
+            ScreenAwake.shared.hold(.processing)
             isFinishing = resuming
             extractor.start(game: game, context: modelContext)
         }
         .onDisappear {
-            UIApplication.shared.isIdleTimerDisabled = false
+            ScreenAwake.shared.release(.processing)
             extractor.cancel()
         }
         .onChange(of: scenePhase) { _, _ in resumeIfInterrupted() }

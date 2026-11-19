@@ -16,6 +16,8 @@ struct GameDetailView: View {
     @State private var importRequest: ImportRequest?
     @State private var pickerError: String?
     @State private var showProcessing = false
+    /// Recording the game's next part from here.
+    @State private var showRecording = false
     @State private var isEditing = false
     @State private var confirmDeleteVideo = false
     @State private var editMode: EditMode = .inactive
@@ -147,6 +149,9 @@ struct GameDetailView: View {
         .fullScreenCover(isPresented: $showProcessing) {
             ProcessingView(game: game, modelContext: modelContext)
         }
+        .fullScreenCover(isPresented: $showRecording) {
+            RecordingView(modelContext: modelContext, game: game)
+        }
     }
 
     private var summary: some View {
@@ -250,6 +255,8 @@ struct GameDetailView: View {
             }
 
             Menu {
+                // Recorded or imported, a game takes its next part either way (decision 0022).
+                Button("Record Part \(game.nextPartIndex + 1)", systemImage: "video") { showRecording = true }
                 Button("Import from Photos", systemImage: "photo.on.rectangle") { showPhotosPicker = true }
                 Button("Import from Files", systemImage: "folder") { showFileImporter = true }
             } label: {
