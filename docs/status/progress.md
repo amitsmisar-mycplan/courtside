@@ -165,6 +165,14 @@ worse in 1 moment. Built on `feature/auto-follow`; Simulator-verified on "Courts
 
 Built on `fix/recording-flow`. Open question 5 (taps on the self-dimmed screen) is for the founder.
 
+**Fix: dimmed recording screen and Stop** ([0035](../decisions/0035-dim-wake-and-stop.md), closes open question 5):
+- **Wake touch.** The first touch on the dimmed screen only wakes it; a second within 3 s marks the moment of the first.
+- **Dimmed screen.** It shows a red dot, the time and the mark count, and Settings has "Dim screen while recording"
+  (on by default).
+- **Stop.** It's a tap, and Record Part N is the primary button after stopping.
+
+Built on `fix/recording-dim-and-stop`.
+
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).

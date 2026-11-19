@@ -9,7 +9,7 @@
 - Mark offsets from `CACurrentMediaTime()` deltas measured from the moment the file actually started.
 - Recording screen (landscape-locked, per spec and decision 0008): whole screen marks on touch-down; Refocus top-left; Undo
   bottom-left (5 s, same as playback); elapsed, mark count and thermal warning top-right; dims to near-black with only the
-  elapsed time after 30 s idle, lowering brightness — taps still mark; screen stays awake throughout.
+  elapsed time after 30 s idle, lowering brightness — taps still mark; screen stays awake throughout. _(Changed by [0035](0035-dim-wake-and-stop.md): the first touch only wakes, the dim shows a recording state and can be switched off.)_
 - Pre-flight: blocks under 8 GB free; warns on battery < 50% and not charging, phone already hot, Low Power Mode.
 - After stopping: "Saved 1:32:05 · 14 marks", **Make N Clips** (the usual processing screen) or Done.
 - "Record Game" in Add Game is enabled. In the Simulator it shows "This device has no camera…".
@@ -17,7 +17,7 @@
 ## Deviations / additions
 - **Protocol** keeps the spec's `startRecording() -> URL`, `stopRecording()`, `mark()` and adds `prepare()`, `refocus()`,
   `shutdown()` and an `onUnexpectedFinish` callback (recordings that end on their own still get saved).
-- **Stop is a dedicated hold-to-stop button** (1 s, with a progress ring) bottom-right, not a long-press anywhere — a long
+- **Stop is a dedicated hold-to-stop button** (1 s, with a progress ring) bottom-right, not a long-press anywhere — a long _(Changed by [0035](0035-dim-wake-and-stop.md): Stop is a tap.)_
   press anywhere would also place a mark on touch-down.
 - **The `Game` is created the moment the file starts** (duration 0), and marks are saved as they're tapped, so a crash
   mid-game still has a record. Duration and size are filled in on stop.

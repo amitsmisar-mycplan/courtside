@@ -1,7 +1,8 @@
 import SwiftData
 import SwiftUI
 
-/// Live recording from a tripod. The whole screen marks; stopping takes a deliberate 1-second hold.
+/// Live recording from a tripod. The whole screen marks; on the dimmed screen the first touch only
+/// wakes it (decision 0035). Stop is a tap; Record Part N afterwards continues the same game.
 /// Opened from a game, or recorded again after a stop, the recording is that game's next part.
 struct RecordingView: View {
     let modelContext: ModelContext
@@ -160,7 +161,7 @@ struct RecordingView: View {
                         .onChanged { _ in
                             guard !isTouching else { return }
                             isTouching = true
-                            placeMark(session)
+                            screenTouched(session)
                         }
                         .onEnded { _ in isTouching = false }
                 )
@@ -175,10 +176,7 @@ struct RecordingView: View {
                 Color.black.opacity(0.92)
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
-                Text(Format.duration(session.elapsed))
-                    .font(.system(size: 40, weight: .semibold).monospacedDigit())
-                    .foregroundStyle(.white.opacity(0.5))
-                    .allowsHitTesting(false)
+                dimmedStatus(session)
             } else {
                 controls(session)
             }
@@ -241,7 +239,7 @@ struct RecordingView: View {
                     }
                 }
                 Spacer()
-                HoldToStopButton {
+                StopButton {
                     Task { await session.stop() }
                 }
             }
@@ -250,13 +248,33 @@ struct RecordingView: View {
         .padding(16)
     }
 
-    private func placeMark(_ session: RecordingSession) {
-        let wasDimmed = session.isDimmed
-        guard session.placeMark() else { return }
+    /// Still clearly recording while the screen saves battery: red dot, time and marks, bright
+    /// enough to read at the lowered brightness, and no buttons (decision 0035).
+    private func dimmedStatus(_ session: RecordingSession) -> some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(.red)
+                    .frame(width: 22, height: 22)
+                Text(Format.duration(session.elapsed))
+                    .font(.system(size: 48, weight: .bold).monospacedDigit())
+            }
+            Label("\(session.markCount)", systemImage: "flag.fill")
+                .font(.title2.weight(.semibold).monospacedDigit())
+            Text("Recording · touch to wake")
+                .font(.headline)
+                .foregroundStyle(.white.opacity(0.85))
+        }
+        .foregroundStyle(.white)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Recording, \(Format.duration(session.elapsed)), \(session.markCount) \(session.markCount == 1 ? "mark" : "marks"). Touch to wake.")
+        .allowsHitTesting(false)
+    }
+
+    private func screenTouched(_ session: RecordingSession) {
+        guard session.screenTouched() == .marked else { return }
         haptics.impactOccurred()
         haptics.prepare()
-        // No flash while the screen was dark — keep it dark and quiet.
-        guard !wasDimmed else { return }
         flashOpacity = 1
         Task {
             try? await Task.sleep(for: .milliseconds(80))
@@ -281,24 +299,26 @@ struct RecordingView: View {
                     .frame(maxWidth: 480)
             }
             HStack(spacing: 12) {
+                if let game = session.game {
+                    // First: the way back after a stop by mistake. The next recording goes into the
+                    // same game as its next part.
+                    Button {
+                        session.recordAgain()
+                    } label: {
+                        Label("Record Part \(game.nextPartIndex + 1)", systemImage: "record.circle")
+                            .padding(.horizontal, 8)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                }
                 if session.markCount > 0 {
                     Button {
                         showProcessing = true
                     } label: {
                         Label("Make \(session.markCount) \(session.markCount == 1 ? "Clip" : "Clips")", systemImage: "scissors")
-                            .padding(.horizontal, 8)
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                if let game = session.game {
-                    // The next recording goes into the same game as its next part.
-                    Button {
-                        session.recordAgain()
-                    } label: {
-                        Label("Record Part \(game.nextPartIndex + 1)", systemImage: "record.circle")
                     }
                     .buttonStyle(.bordered)
-                    .tint(.red)
+                    .tint(.white)
                 }
                 Button("Done") { dismiss() }
                     .buttonStyle(.bordered)
@@ -383,44 +403,26 @@ private struct LensPicker: View {
     }
 }
 
-/// Stopping a game recording takes a deliberate 1-second hold, so a stray tap can't end it.
-private struct HoldToStopButton: View {
+/// Stops the recording with one tap (decision 0035). It's hidden while the screen is dimmed, so a
+/// touch on the dark screen can't stop anything; a stop by mistake is undone with Record Part N.
+private struct StopButton: View {
     let onStop: () -> Void
-    @State private var isPressing = false
-    @State private var showHint = false
 
     var body: some View {
-        VStack(spacing: 6) {
-            if showHint {
-                Text("Hold to stop")
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(.black.opacity(0.6), in: Capsule())
-            }
+        Button(action: onStop) {
             ZStack {
                 Circle()
                     .stroke(.white.opacity(0.4), lineWidth: 4)
-                Circle()
-                    .trim(from: 0, to: isPressing ? 1 : 0)
-                    .stroke(.red, style: StrokeStyle(lineWidth: 4, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .animation(isPressing ? .linear(duration: 1) : .easeOut(duration: 0.2), value: isPressing)
                 RoundedRectangle(cornerRadius: 6)
                     .fill(.red)
                     .frame(width: 26, height: 26)
             }
             .frame(width: 68, height: 68)
             .contentShape(Circle())
-            .onLongPressGesture(minimumDuration: 1) {
-                onStop()
-            } onPressingChanged: { pressing in
-                isPressing = pressing
-                if pressing { showHint = true }
-            }
-            .accessibilityLabel("Stop recording")
-            .accessibilityHint("Touch and hold for one second")
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Stop recording")
+        .accessibilityHint("Stops and saves. You can record the next part right after.")
     }
 }
 

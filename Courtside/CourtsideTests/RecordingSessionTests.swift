@@ -176,7 +176,7 @@ final class RecordingSessionTests: XCTestCase {
         XCTAssertNotNil(session.endNote)
     }
 
-    func testScreenDimsAfterThirtySecondsIdleAndWakesOnTap() async {
+    func testScreenDimsAfterThirtySecondsIdleAndATouchWakesIt() async {
         let session = await recordingSession()
         now += 29
         session.tick()
@@ -184,7 +184,7 @@ final class RecordingSessionTests: XCTestCase {
         now += 2
         session.tick()
         XCTAssertTrue(session.isDimmed)
-        XCTAssertTrue(session.placeMark(), "a tap still marks while dimmed")
+        XCTAssertEqual(session.screenTouched(), .woke, "the first touch on the dimmed screen only wakes it")
         XCTAssertFalse(session.isDimmed)
     }
 
@@ -313,5 +313,103 @@ final class RecordingSessionTests: XCTestCase {
         await session.start()
         XCTAssertEqual(session.markCount, 0)
         XCTAssertTrue(session.placeMark(), "the debounce from Part 1 doesn't carry over")
+    }
+
+    // MARK: Touch to wake (decision 0035)
+
+    /// Recording, then idle until the screen dims, with the recording at `offset` seconds.
+    private func dimmedSession(at offset: Double) async -> RecordingSession {
+        let session = await recordingSession()
+        now += RecordingSession.idleDimAfter + 1
+        service.markTime = offset
+        session.tick()
+        XCTAssertTrue(session.isDimmed)
+        return session
+    }
+
+    func testTouchOnTheDimmedScreenOnlyWakesIt() async {
+        let session = await dimmedSession(at: 40)
+        XCTAssertEqual(session.screenTouched(), .woke)
+        XCTAssertFalse(session.isDimmed)
+        XCTAssertEqual(session.markCount, 0, "no mark from the wake touch")
+        XCTAssertFalse(session.canUndo)
+        // With no second touch, nothing is ever marked.
+        now += 10
+        service.markTime = 50
+        session.tick()
+        XCTAssertEqual(session.markCount, 0)
+    }
+
+    func testASecondTouchWithin3SecondsMarksTheMomentOfTheFirst() async throws {
+        let session = await dimmedSession(at: 40)
+        session.screenTouched()
+        now += 1.5
+        service.markTime = 41.5
+        XCTAssertEqual(session.screenTouched(), .marked)
+        XCTAssertEqual(session.markCount, 1)
+        let mark = try XCTUnwrap(session.game?.marks.first)
+        XCTAssertEqual(mark.offsetSeconds, 40, accuracy: 0.0001, "backdated to the wake touch")
+        XCTAssertTrue(session.canUndo, "Undo works on it as on any mark")
+        // The touch after that is an ordinary awake tap: debounced, then marks at its own time.
+        now += 1
+        service.markTime = 42.5
+        XCTAssertEqual(session.screenTouched(), .ignored, "within the 2 s debounce")
+        now += 1
+        service.markTime = 43.5
+        XCTAssertEqual(session.screenTouched(), .marked)
+        XCTAssertEqual(session.game?.marks.map(\.offsetSeconds).sorted(), [40, 43.5])
+    }
+
+    func testASecondTouchAt3Point5SecondsMarksItsOwnMoment() async throws {
+        let session = await dimmedSession(at: 40)
+        session.screenTouched()
+        now += 3.5
+        service.markTime = 43.5
+        XCTAssertEqual(session.screenTouched(), .marked, "the screen is awake: an ordinary tap")
+        XCTAssertEqual(try XCTUnwrap(session.game?.marks.first).offsetSeconds, 43.5, accuracy: 0.0001)
+    }
+
+    func testTheBackdateWindowEndsAtExactly3Seconds() async throws {
+        let session = await dimmedSession(at: 40)
+        session.screenTouched()
+        now += RecordingSession.backdateWindow
+        service.markTime = 43
+        XCTAssertEqual(session.screenTouched(), .marked)
+        XCTAssertEqual(try XCTUnwrap(session.game?.marks.first).offsetSeconds, 40, accuracy: 0.0001)
+    }
+
+    func testAwakeTouchesMarkAtOnceWithTheUsualDebounce() async throws {
+        let session = await recordingSession()
+        service.markTime = 12
+        XCTAssertEqual(session.screenTouched(), .marked, "touch-down marks, as before")
+        now += 1
+        XCTAssertEqual(session.screenTouched(), .ignored)
+        now += 1
+        service.markTime = 14
+        XCTAssertEqual(session.screenTouched(), .marked)
+        XCTAssertEqual(session.game?.marks.map(\.offsetSeconds).sorted(), [12, 14])
+    }
+
+    func testTheGuardAfterReturningToTheAppStillHolds() async {
+        let session = await recordingSession()
+        session.ignoreTapsBriefly()
+        now += 0.5
+        XCTAssertEqual(session.screenTouched(), .ignored)
+        now += 0.6
+        XCTAssertEqual(session.screenTouched(), .marked)
+    }
+
+    func testDimmingCanBeSwitchedOff() async {
+        let defaults = UserDefaults(suiteName: "dim-test-\(UUID().uuidString)")!
+        XCTAssertTrue(RecordingSettings.dimsWhileRecording(in: defaults), "on unless switched off")
+        defaults.set(false, forKey: RecordingSettings.dimWhileRecordingKey)
+        let session = RecordingSession(service: service, context: container.mainContext, freeSpace: { [unowned self] in free },
+                                       clock: { [unowned self] in now }, defaults: defaults)
+        await session.prepare(preflight: [])
+        await session.start()
+        now += 600
+        session.tick()
+        XCTAssertFalse(session.isDimmed, "never dims")
+        XCTAssertEqual(session.screenTouched(), .marked, "so every touch marks")
     }
 }
