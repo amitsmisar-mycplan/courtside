@@ -38,3 +38,4 @@ One file per decision that deviates from or extends the spec. Add new ones with 
 | [0032](0032-framing-presets.md) | Vertical framing: Wide / Medium / Tight on 0024's zoom scale, default Medium, readout and side warning, slider under Advanced | Accepted |
 | [0033](0033-auto-follow.md) | Auto-follow for Vertical: on-device motion analysis sets the aim points, on by default after an 18-moment evaluation (approved exception to the computer-vision non-goal: motion analysis only) | Accepted |
 | [0034](0034-record-more-parts.md) | Recording more parts: Record Part N on the finished screen and in the game's Add Video menu adds the next part to the same game (changes 0022's "not built") | Accepted |
+| [0035](0035-dim-wake-and-stop.md) | Dimmed recording screen: first touch only wakes (a second within 3 s marks the first moment), shows recording state, dim can be switched off; Stop by tap; Record Part N primary | Accepted |

@@ -24,6 +24,18 @@ final class RecordingSession {
     /// Taps are ignored this long after the app comes back to the front or the screen appears, so
     /// the touch that wakes the phone doesn't mark a moment.
     static let wakeGuard: CFTimeInterval = 1
+    /// After a touch that only woke the dimmed screen, a second touch this soon marks the moment of
+    /// the first one (decision 0035).
+    static let backdateWindow: CFTimeInterval = 3
+
+    /// What a touch on the recording screen did.
+    enum TouchResult: Equatable {
+        /// Nothing: not recording, debounced, or just after the app came back.
+        case ignored
+        /// Woke the dimmed screen; no mark.
+        case woke
+        case marked
+    }
 
     private(set) var phase: Phase = .preparing
     private(set) var failureNeedsSettings = false
@@ -52,6 +64,8 @@ final class RecordingSession {
     @ObservationIgnored private var lastMarkAt: CFTimeInterval = -.greatestFiniteMagnitude
     @ObservationIgnored private var lastInteraction: CFTimeInterval = 0
     @ObservationIgnored private var marksBlockedUntil: CFTimeInterval = -.greatestFiniteMagnitude
+    /// The last touch that only woke the screen: when it happened and where the recording was then.
+    @ObservationIgnored private var wakeTouch: (at: CFTimeInterval, offset: Double)?
     @ObservationIgnored private var tickTask: Task<Void, Never>?
     @ObservationIgnored private var diskTask: Task<Void, Never>?
     @ObservationIgnored private var thermalObserver: NSObjectProtocol?
@@ -159,6 +173,7 @@ final class RecordingSession {
             elapsed = 0
             endNote = nil
             lastMarkAt = -.greatestFiniteMagnitude
+            wakeTouch = nil
             phase = .recording
             touch()
             startTicking()
@@ -247,9 +262,33 @@ final class RecordingSession {
 
     // MARK: Marking
 
+    /// A touch on the recording screen (decision 0035). On the dimmed screen it only wakes it; a
+    /// second touch within `backdateWindow` then marks the moment of the first. Awake, it marks.
+    @discardableResult
+    func screenTouched() -> TouchResult {
+        guard phase == .recording else { return .ignored }
+        let now = clock()
+        if isDimmed {
+            wakeTouch = (now, service.mark())
+            touch()
+            return .woke
+        }
+        if let wake = wakeTouch, now - wake.at <= Self.backdateWindow {
+            wakeTouch = nil
+            return placeMark(at: wake.offset) ? .marked : .ignored
+        }
+        wakeTouch = nil
+        return placeMark() ? .marked : .ignored
+    }
+
     /// Records a mark at the current recording time. Returns false if debounced or not recording.
     @discardableResult
     func placeMark() -> Bool {
+        placeMark(at: nil)
+    }
+
+    /// A mark at `offset` seconds into the part, or now when nil.
+    private func placeMark(at offset: Double?) -> Bool {
         guard phase == .recording, let game else { return false }
         touch()
         let now = clock()
@@ -257,7 +296,7 @@ final class RecordingSession {
         guard now - lastMarkAt >= Self.debounceInterval else { return false }
         lastMarkAt = now
 
-        let mark = Mark(offsetSeconds: service.mark())
+        let mark = Mark(offsetSeconds: offset ?? service.mark())
         context.insert(mark)
         mark.game = game
         mark.part = part ?? game.orderedParts.first
@@ -305,7 +344,7 @@ final class RecordingSession {
     func tick() {
         guard phase == .recording else { return }
         elapsed = service.mark()
-        if !isDimmed, clock() - lastInteraction >= Self.idleDimAfter {
+        if !isDimmed, RecordingSettings.dimsWhileRecording(in: defaults), clock() - lastInteraction >= Self.idleDimAfter {
             isDimmed = true
         }
     }

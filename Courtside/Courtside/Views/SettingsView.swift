@@ -10,6 +10,7 @@ struct SettingsView: View {
     @AppStorage(LabelSettings.exportLabelKey) private var exportLabel = ExportLabelMode.openAndClose
     @AppStorage(LabelSettings.labelledQualityKey) private var labelledQuality = LabelledExportQuality.hd1080
     @AppStorage(PlayerSettings.myPlayerKey) private var myPlayerRaw = ""
+    @AppStorage(RecordingSettings.dimWhileRecordingKey) private var dimWhileRecording = true
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Player.name) private var players: [Player]
     @State private var addingPlayer = false
@@ -56,6 +57,13 @@ struct SettingsView: View {
                     Text("Game labels")
                 } footer: {
                     Text("New games start with your team; change it on any game. Saved and shared clips show the team, opponent, tournament and date for a few seconds at the start and end. Never the score. Adding a label re-makes the video: 1080p is several times faster than full quality for 4K clips.")
+                }
+                Section {
+                    Toggle("Dim screen while recording", isOn: $dimWhileRecording)
+                } header: {
+                    Text("Recording")
+                } footer: {
+                    Text("Saves battery over a long game: after 30 seconds without a touch, the screen goes dark but keeps showing that it's recording. The first touch only wakes it. The phone never locks while recording either way.")
                 }
                 playersSection
                 Section {
