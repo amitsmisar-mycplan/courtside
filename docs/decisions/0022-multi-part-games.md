@@ -53,7 +53,7 @@ before the backfill still plays the right video.
   `GamePart` with the next index and saves, and the opponent step is skipped. If the app dies between the file move
   and the save, the file is an orphan and recovery makes it its own "Recovered" game, so the footage is kept.
 - **Recording:** `RecordingSession` creates the game with Part 1 (duration 0 until stop), and live marks get Part 1.
-  Recording into an existing game is not built.
+  Recording into an existing game is not built. _(Built since: [0034](0034-record-more-parts.md).)_
 - **Orphan recovery:** known files = every part's filename ∪ every game's legacy filename. Any other complete file in
   `Games/` is still an orphan and becomes a new one-part game, as today. Zero-length recovery runs per part.
 - **Marking:** `MarkingSession` and `PlaybackMarkingView` take a part. They play that part's video, take its duration,

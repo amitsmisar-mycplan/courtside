@@ -55,11 +55,11 @@ struct SlowMoPreviewPlayer: View {
         .persistentSystemOverlays(.hidden)
         .lockedOrientation(session.isPortrait ? .portrait : .landscape)
         .onAppear {
-            UIApplication.shared.isIdleTimerDisabled = true
+            ScreenAwake.shared.hold(.slowMoPreview)
             session.preview()
         }
         .onDisappear {
-            UIApplication.shared.isIdleTimerDisabled = false
+            ScreenAwake.shared.release(.slowMoPreview)
             session.closePreview()
         }
         .onChange(of: session.errorMessage) { _, message in

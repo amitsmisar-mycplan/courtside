@@ -3,8 +3,8 @@ import OSLog
 import QuartzCore
 import SwiftData
 
-/// Drives live recording: creates the `Game`, writes `Mark` rows as the parent taps, and
-/// makes sure every way recording can end leaves a saved game.
+/// Drives live recording: creates the `Game` (or adds the next part to one), writes `Mark` rows
+/// as the parent taps, and makes sure every way recording can end leaves a saved game.
 @MainActor @Observable
 final class RecordingSession {
     enum Phase: Equatable {
@@ -21,6 +21,9 @@ final class RecordingSession {
     static let idleDimAfter: CFTimeInterval = 30
     static let lowDiskStopBytes: Int64 = 1_000_000_000
     static let diskPollInterval: Duration = .seconds(60)
+    /// Taps are ignored this long after the app comes back to the front or the screen appears, so
+    /// the touch that wakes the phone doesn't mark a moment.
+    static let wakeGuard: CFTimeInterval = 1
 
     private(set) var phase: Phase = .preparing
     private(set) var failureNeedsSettings = false
@@ -32,6 +35,8 @@ final class RecordingSession {
     private(set) var isDimmed = false
     private(set) var thermalWarning: String?
     private(set) var game: Game?
+    /// The part being (or last) recorded: Part 1 of a new game, or the next part of `game`.
+    private(set) var part: GamePart?
     /// Why recording stopped, when the parent didn't stop it.
     private(set) var endNote: String?
     /// The lens in use and the ones this phone has (decision 0026). Known once ready.
@@ -46,6 +51,7 @@ final class RecordingSession {
     @ObservationIgnored private let clock: () -> CFTimeInterval
     @ObservationIgnored private var lastMarkAt: CFTimeInterval = -.greatestFiniteMagnitude
     @ObservationIgnored private var lastInteraction: CFTimeInterval = 0
+    @ObservationIgnored private var marksBlockedUntil: CFTimeInterval = -.greatestFiniteMagnitude
     @ObservationIgnored private var tickTask: Task<Void, Never>?
     @ObservationIgnored private var diskTask: Task<Void, Never>?
     @ObservationIgnored private var thermalObserver: NSObjectProtocol?
@@ -55,8 +61,10 @@ final class RecordingSession {
         context: ModelContext,
         freeSpace: @escaping () -> Int64 = StorageManager.availableCapacity,
         clock: @escaping () -> CFTimeInterval = CACurrentMediaTime,
-        defaults: UserDefaults = .standard
+        defaults: UserDefaults = .standard,
+        game: Game? = nil
     ) {
+        self.game = game
         self.service = service
         self.context = context
         self.freeSpace = freeSpace
@@ -117,20 +125,40 @@ final class RecordingSession {
         do {
             let url = try await service.startRecording()
             let now = Date()
-            // Created as soon as the file exists, so a crash mid-game still has a record.
-            let game = Game(
-                // Details are filled in after the game; never ask for them before recording.
-                label: "",
-                recordedAt: now,
-                videoFilename: url.lastPathComponent,
-                durationSeconds: 0,
-                source: .recorded,
-                videoFileSize: 0,
-                team: LabelSettings.myTeam
-            )
-            context.insert(game)
+            if let game {
+                // Recording into a game that already exists (opened from it, or recorded again
+                // after a stop): the file becomes its next part, like Add Video (decision 0022).
+                let part = GamePart(
+                    index: game.nextPartIndex,
+                    videoFilename: url.lastPathComponent,
+                    durationSeconds: 0,
+                    videoFileSize: 0,
+                    recordedAt: now
+                )
+                context.insert(part)
+                part.game = game
+                self.part = part
+            } else {
+                // Created as soon as the file exists, so a crash mid-game still has a record.
+                let game = Game(
+                    // Details are filled in after the game; never ask for them before recording.
+                    label: "",
+                    recordedAt: now,
+                    videoFilename: url.lastPathComponent,
+                    durationSeconds: 0,
+                    source: .recorded,
+                    videoFileSize: 0,
+                    team: LabelSettings.myTeam
+                )
+                context.insert(game)
+                self.game = game
+                part = game.orderedParts.first
+            }
             try? context.save()
-            self.game = game
+            markCount = 0
+            elapsed = 0
+            endNote = nil
+            lastMarkAt = -.greatestFiniteMagnitude
             phase = .recording
             touch()
             startTicking()
@@ -152,10 +180,8 @@ final class RecordingSession {
         } catch {
             // Recording had already ended on its own; save what's there.
             Self.log.error("Stop failed: \(error.localizedDescription); saving what was recorded")
-            if let game {
-                if let part = game.orderedParts.first {
-                    await finalize(url: StorageManager.videoURL(for: part), reportedDuration: elapsed)
-                }
+            if let part {
+                await finalize(url: StorageManager.videoURL(for: part), reportedDuration: elapsed)
             }
         }
     }
@@ -168,6 +194,15 @@ final class RecordingSession {
     func checkDiskSpace() async {
         guard phase == .recording, freeSpace() < Self.lowDiskStopBytes else { return }
         await stop(reason: "Recording stopped because the phone is almost out of space. Everything up to that point is saved.")
+    }
+
+    /// After a stop, back to the start button with the camera still running: the next recording is
+    /// the next part of the same game.
+    func recordAgain() {
+        guard phase == .finished, game != nil else { return }
+        undo.clear()
+        isDimmed = false
+        phase = .ready
     }
 
     func shutdown() {
@@ -187,7 +222,7 @@ final class RecordingSession {
     }
 
     private func finalize(url: URL, reportedDuration: Double) async {
-        guard let game else {
+        guard let part else {
             phase = .finished
             return
         }
@@ -195,11 +230,13 @@ final class RecordingSession {
         let loaded = (try? await asset.load(.duration).seconds) ?? 0
         let duration = loaded.isFinite && loaded > 0 ? loaded : max(reportedDuration, elapsed)
         let size = StorageManager.fileSize(at: url)
-        // A recording is always Part 1 (recording into an existing game isn't built, decision 0022).
-        game.orderedParts.first?.durationSeconds = duration
-        game.orderedParts.first?.videoFileSize = size
-        game.legacyDurationSeconds = duration
-        game.legacyVideoFileSize = size
+        part.durationSeconds = duration
+        part.videoFileSize = size
+        // The game's own fields from before parts mirror Part 1 only.
+        if let game, part.index == game.orderedParts.first?.index {
+            game.legacyDurationSeconds = duration
+            game.legacyVideoFileSize = size
+        }
         try? context.save()
         elapsed = duration
         undo.clear()
@@ -216,13 +253,14 @@ final class RecordingSession {
         guard phase == .recording, let game else { return false }
         touch()
         let now = clock()
+        guard now >= marksBlockedUntil else { return false }
         guard now - lastMarkAt >= Self.debounceInterval else { return false }
         lastMarkAt = now
 
         let mark = Mark(offsetSeconds: service.mark())
         context.insert(mark)
         mark.game = game
-        mark.part = game.orderedParts.first
+        mark.part = part ?? game.orderedParts.first
         try? context.save()
         markCount += 1
 
@@ -249,6 +287,12 @@ final class RecordingSession {
     func refocus() {
         touch()
         service.refocus()
+    }
+
+    /// The app just came to the front or the recording screen just appeared: the next
+    /// `wakeGuard` seconds of taps only wake the screen.
+    func ignoreTapsBriefly() {
+        marksBlockedUntil = clock() + Self.wakeGuard
     }
 
     /// Any interaction wakes the screen and restarts the idle clock.
