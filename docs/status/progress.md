@@ -173,6 +173,12 @@ Built on `fix/recording-flow`. Open question 5 (taps on the self-dimmed screen) 
 
 Built on `fix/recording-dim-and-stop`.
 
+**Investigation: Find Moments found nothing in a game's last 6 minutes**
+([report](../investigations/find-moments-tail.md)). The cause is the strongest-first cap, not the threshold, marks, or
+an incomplete scan. The tail had 18 peaks above threshold, and its best (9.69) missed the 23rd place by 0.05. The
+recommendation, not built: give each 10-minute slice its best moment first. A diagnostic harness, skipped by default,
+is on `investigate/find-moments-tail`.
+
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).
