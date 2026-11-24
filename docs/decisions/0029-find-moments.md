@@ -68,8 +68,8 @@ threshold can't work, so everything is measured against each video's own floor (
   while it has no clip yet. Closing the screen with new marks opens the usual clip-making screen, as closing marking
   does; trim, slow mo and exports work on those clips like any other. **A suggestion never becomes a clip by itself.**
 - **Saving results** replaces the part's pending suggestions, keeps accepted and dismissed ones, and adds nothing within
-  20 s of them, so a later second scan can't undo the parent's choices. The screen doesn't offer a second scan of a
-  finished part yet (see extras).
+  20 s of them, so a later second scan can't undo the parent's choices. A finished part can be scanned again (amendment
+  below).
 - **Same for recorded and imported video.** Nothing branches on `Game.source`. Views render state and send intents
   (`Services/MomentReviewSession`).
 
@@ -97,3 +97,26 @@ threshold can't work, so everything is measured against each video's own floor (
   still covers it.
 - No referee-whistle signal: the classifier doesn't have one.
 - A scan stopped in the last few seconds before a checkpoint re-reads up to 2 minutes of audio on resume.
+
+## Amendment — Scan Again (2026-11-24)
+A finished scan saves its suggestions, deletes its saved sound numbers, and the app never redid it. So a game scanned
+before a ranking change couldn't get the new ranking. Founder's spec: a way to scan a part again.
+- **Where.** The Find Moments screen's toolbar has a "⋯" menu with **Scan Again**, shown once the part has been scanned
+  and not while a scan is running or its failure is on screen. In a menu, not the main button, so it isn't tapped by
+  accident. A confirmation follows: "Scan again? Suggestions you haven't reviewed will be replaced. Your marks and
+  dismissed ones are kept." with Scan Again and Cancel.
+- **What it does.** It listens to the part's video from the start (the first scan's numbers were deleted when it
+  finished) and runs the current picker. Time, progress, Stop, background pausing and one scan at a time are the first
+  scan's: the same `MomentFinder.start`. A Scan Again stopped part way keeps what it heard, like a first scan, and the
+  next Scan Again picks up from there. The "Find Moments" retry for a failed or stopped first scan is unchanged.
+- **What it keeps.** When it finishes, only suggestions still waiting are replaced. Accepted ones (and their marks) and
+  dismissed ones stay as they are. Nothing new comes within 13 s of a mark or 20 s of another suggestion, accepted and
+  dismissed ones included, so a dismissed moment doesn't come back. Stopping it, or a failure, changes nothing. No
+  footage or mark is ever deleted.
+- **One change to the picker:** it now takes the seconds of decided suggestions and skips peaks within 20 s of them
+  *before* counting toward the per-hour limit. Before, saving dropped those after the picker had chosen, so a scan
+  again of a well-reviewed game would have returned fewer suggestions than the limit allows (each dismissed moment
+  costing one place). A first scan has no decided suggestions, so it's unchanged.
+- **Same for every part**, recorded, imported or mixed; nothing branches on `Game.source`. No schema change.
+- **Tradeoff:** a full re-listen takes as long as the first scan (about 0.3 s per minute of video in the Simulator).
+  Keeping the sound numbers after a scan would make it instant but needs storage per part; not done.

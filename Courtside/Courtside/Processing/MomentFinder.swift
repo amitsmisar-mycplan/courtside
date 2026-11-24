@@ -123,9 +123,11 @@ final class MomentFinder {
                 return
             }
             let marks = (part.game?.marks ?? []).filter { $0.resolvedPart === part }.map(\.offsetSeconds)
+            // On a scan again, what the parent already accepted or dismissed.
+            let decided = part.suggestions.filter { $0.status != .pending }.map(\.seconds)
             let settings = settings
             let candidates = await Task.detached(priority: .utility) {
-                MomentPicker.pick(result.signal, avoiding: marks, settings: settings)
+                MomentPicker.pick(result.signal, avoiding: marks, decided: decided, settings: settings)
             }.value
             found = Self.save(candidates, to: part, spacing: settings.spacing, context: context)
             StorageManager.removeMomentScan(forPartID: partID)

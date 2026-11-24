@@ -538,6 +538,110 @@ final class FindMomentsTests: XCTestCase {
         XCTAssertNil(StorageManager.loadMomentScan(forPartID: part.id))
     }
 
+    // MARK: Scan Again
+
+    func testScanAgainSkipsDecidedMomentsWithoutSpendingTheList() {
+        // 9 minutes: three suggestions at most.
+        var signal = Synthetic(seconds: 540)
+        for (second, height) in [(60, 0.5), (200, 0.4), (350, 0.3), (480, 0.2)] {
+            signal.cheer(at: second, height: height, louder: 2 + 8 * height)
+        }
+        assertNear(times(signal.pick()), [62, 202, 352], within: 1)
+        // The one dismissed at 202 doesn't come back, and the next strongest takes its place.
+        let again = MomentPicker.pick(reaction: signal.reaction, loudness: signal.loudness, avoiding: [], decided: [203])
+        assertNear(times(again), [62, 352, 482], within: 1)
+    }
+
+    /// A finished scan of a 400 s soundtrack with bursts at 40, 160 and 300, through the screen's session.
+    private func scannedSession() async throws -> (ModelContainer, Game, GamePart, MomentReviewSession) {
+        let (container, game, part) = try makeGame(duration: 400)
+        let url = StorageManager.videoURL(for: part)
+        files.append(url)
+        files.append(StorageManager.momentScanURL(forPartID: part.id))
+        try writeSoundtrack(to: url, seconds: 400, bursts: [40, 160, 300])
+        let session = MomentReviewSession(part: part, context: container.mainContext)
+        XCTAssertFalse(session.canScanAgain, "nothing to scan again before the first scan")
+        session.appear()
+        await session.finder.waitUntilDone()
+        XCTAssertEqual(session.finder.phase, .finished)
+        XCTAssertTrue(session.canScanAgain)
+        return (container, game, part, session)
+    }
+
+    /// The first two suggestions in time order: one to accept, one to dismiss.
+    private func firstTwo(in part: GamePart) throws -> (SuggestedMoment, SuggestedMoment) {
+        let list = part.orderedSuggestions
+        XCTAssertGreaterThanOrEqual(list.count, 3, "suggestions \(list.map(\.seconds))")
+        return (try XCTUnwrap(list.first), try XCTUnwrap(list.dropFirst().first))
+    }
+
+    func testScanAgainKeepsDecisionsAndReplacesOnlyWaitingSuggestions() async throws {
+        let (container, game, part, session) = try await scannedSession()
+        let (accepted, dismissed) = try firstTwo(in: part)
+        session.accept(accepted)
+        session.dismiss(dismissed)
+        let mark = try XCTUnwrap(accepted.acceptedMark)
+        let stillWaiting = part.suggestions.filter { $0.status == .pending }
+        let waiting = Set(stillWaiting.map(\.id))
+        XCTAssertFalse(waiting.isEmpty)
+
+        session.scanAgain()
+        XCTAssertEqual(session.finder.phase, .running)
+        XCTAssertNil(session.selected, "nothing stays selected from the list being replaced")
+        XCTAssertFalse(session.canScanAgain, "not while it's listening")
+        await session.finder.waitUntilDone()
+        XCTAssertEqual(session.finder.phase, .finished)
+
+        // Decisions stay exactly as they were.
+        XCTAssertEqual(accepted.status, .accepted)
+        XCTAssertEqual(dismissed.status, .dismissed)
+        XCTAssertEqual(game.marks.map(\.id), [mark.id], "the mark stays, and no new one is made")
+        XCTAssertEqual(mark.offsetSeconds, accepted.seconds)
+        // Every waiting suggestion was replaced, by the same moments: the sound is the same.
+        let pending = part.orderedSuggestions.filter { $0.status == .pending }
+        XCTAssertTrue(waiting.isDisjoint(with: pending.map(\.id)))
+        for old in stillWaiting.map(\.seconds) {
+            XCTAssertNotNil(pending.first { abs($0.seconds - old) <= 3 }, "\(old) suggested again in \(pending.map(\.seconds))")
+        }
+        // No duplicates: nothing near the mark, the dismissed moment, or each other.
+        let settings = MomentPicker.Settings()
+        for moment in pending {
+            XCTAssertGreaterThanOrEqual(abs(moment.seconds - mark.offsetSeconds), settings.markClearance)
+            XCTAssertGreaterThanOrEqual(abs(moment.seconds - dismissed.seconds), settings.spacing, "a dismissed moment stays gone")
+        }
+        let all = part.orderedSuggestions.map(\.seconds)
+        for (a, b) in zip(all, all.dropFirst()) {
+            XCTAssertGreaterThanOrEqual(b - a, settings.spacing, "suggestions \(all)")
+        }
+        XCTAssertEqual(try container.mainContext.fetch(FetchDescriptor<SuggestedMoment>()).count, part.suggestions.count)
+        XCTAssertNil(StorageManager.loadMomentScan(forPartID: part.id))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: StorageManager.videoURL(for: part).path), "the video is untouched")
+        XCTAssertNotNil(session.selected, "the first waiting suggestion is ready to watch")
+    }
+
+    func testStoppingAScanAgainChangesNothing() async throws {
+        // The container is kept: letting it go would destroy the models.
+        let (container, game, part, session) = try await scannedSession()
+        let (accepted, dismissed) = try firstTwo(in: part)
+        session.accept(accepted)
+        session.dismiss(dismissed)
+        func snapshot() -> [String] {
+            part.orderedSuggestions.map { "\($0.id) \($0.seconds) \($0.status)" }
+        }
+        let before = snapshot()
+        let marks = game.marks.map(\.id)
+
+        session.scanAgain()
+        session.stop()
+        await session.finder.waitUntilDone()
+        XCTAssertEqual(session.finder.phase, .cancelled)
+        XCTAssertEqual(snapshot(), before, "suggestions and decisions unchanged")
+        XCTAssertEqual(game.marks.map(\.id), marks)
+        XCTAssertTrue(session.hasResults, "the list it started from is shown again")
+        XCTAssertTrue(session.canScanAgain)
+        withExtendedLifetime(container) {}
+    }
+
     func testVideoWithoutSoundSaysSo() async throws {
         let (container, _, part) = try makeGame(duration: 2)
         part.videoFilename = StorageManager.makeGameVideoFilename(id: UUID(), fileExtension: "mov")

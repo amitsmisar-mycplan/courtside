@@ -10,6 +10,8 @@ struct MomentsView: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.verticalSizeClass) private var verticalSizeClass
 
+    @State private var confirmingScanAgain = false
+
     private let title: String
 
     init(part: GamePart, modelContext: ModelContext) {
@@ -23,6 +25,16 @@ struct MomentsView: View {
                 .navigationTitle(title)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
+                    // In a menu, not a button, so a scan that replaces suggestions isn't started by a stray tap.
+                    if session.canScanAgain {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Menu {
+                                Button("Scan Again", systemImage: "arrow.clockwise") { confirmingScanAgain = true }
+                            } label: {
+                                Label("More", systemImage: "ellipsis.circle")
+                            }
+                        }
+                    }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") {
                             // Upright first, so the game page never lays out sideways.
@@ -31,6 +43,12 @@ struct MomentsView: View {
                         }
                     }
                 }
+        }
+        .alert("Scan again?", isPresented: $confirmingScanAgain) {
+            Button("Scan Again") { session.scanAgain() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Suggestions you haven't reviewed will be replaced. Your marks and dismissed ones are kept.")
         }
         .interactiveDismissDisabled(session.finder.phase == .running)
         .onAppear {

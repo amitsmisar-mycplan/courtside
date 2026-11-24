@@ -179,6 +179,12 @@ an incomplete scan. The tail had 18 peaks above threshold, and its best (9.69) m
 recommendation, not built: give each 10-minute slice its best moment first. A diagnostic harness, skipped by default,
 is on `investigate/find-moments-tail`.
 
+**Find Moments: Scan Again** ([0029, amended](../decisions/0029-find-moments.md#amendment--scan-again-2026-11-24)).
+A "⋯" menu on the Find Moments screen offers Scan Again for a part already scanned, after a confirmation. It listens
+again from the start and replaces only the suggestions still waiting; accepted ones (marks) and dismissed ones stay, and
+nothing new comes near them. The picker now skips decided moments before counting toward its limit. Built on
+`investigate/find-moments-tail`; the ranking itself is unchanged.
+
 **Next action:** install on the iPhone, verify import/marking/clips/slow mo, then run a short recording test (docs/testing/device-acceptance.md → First install), then the 90-minute acceptance test.
 
 Remaining Simulator work before calling 1–5 fully verified: see [../testing/simulator-verification.md](../testing/simulator-verification.md#not-yet-verified).

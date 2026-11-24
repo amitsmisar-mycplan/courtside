@@ -115,6 +115,12 @@ Device: founder's son's iPhone (confirmed 2026-10-07).
 - [ ] Tap the preview → full screen sideways; arrows step through; Accept / Dismiss there; the shrink button returns to
       the list upright. Turn the phone sideways from the list → full screen; upright → the list
 - [ ] A game filmed with the phone upright: the preview shows the whole picture (not zoomed), full screen stays upright
+- [ ] Scan Again (0029 amendment): on a part already scanned, with some accepted, some dismissed and some waiting,
+      "⋯" → Scan Again → the confirmation; Cancel changes nothing. Scan Again → it listens from 0:00. When it finishes:
+      the accepted ones and their marks and clips are still there, no dismissed moment is back (Show Reviewed), and the
+      waiting list is new. **Note how long it took**
+- [ ] Scan Again, then Stop part way: the list is exactly as it was; Scan Again again picks up where it stopped
+- [ ] Scan Again, switch to another app for a minute and come back: it carries on, as the first scan does
 
 ## Player tags ([decision 0030](../decisions/0030-player-tags.md))
 - [ ] Open a clip: "Tag Player" sits beside the time line under the video; the video is the same size as before

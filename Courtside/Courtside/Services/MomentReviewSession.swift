@@ -65,9 +65,35 @@ final class MomentReviewSession {
         finder.start(part: part, context: context)
         Task { [weak self] in
             await self?.finder.waitUntilDone()
-            guard let self, self.finder.phase == .finished else { return }
+            guard let self else { return }
+            // A stopped scan again goes back to the list it started from.
+            guard self.finder.phase == .finished || (self.finder.phase == .cancelled && self.hasResults) else { return }
             self.selectFirstPending()
         }
+    }
+
+    /// "Scan Again" is offered once a scan has finished, and not while one is running or its
+    /// failure is on screen (that screen offers Find Moments again instead).
+    var canScanAgain: Bool {
+        guard hasResults else { return false }
+        switch finder.phase {
+        case .running, .interrupted, .failed: return false
+        case .idle, .finished, .cancelled: return true
+        }
+    }
+
+    /// Listens to the part again (decision 0029, amended): from the beginning, unless an earlier
+    /// scan again was stopped part way, which picks up where it stopped like a first scan. When it
+    /// finishes, the suggestions still waiting are replaced; accepted and dismissed ones stay, and
+    /// nothing new is suggested near them or near a mark. Stopping it changes nothing.
+    func scanAgain() {
+        guard canScanAgain else { return }
+        selectedID = nil
+        preview.pause()
+        lastDecision = nil
+        leavingIDs = []
+        showsReviewed = false
+        find()
     }
 
     func stop() {
