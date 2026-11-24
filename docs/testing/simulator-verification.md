@@ -562,3 +562,17 @@ every player shows them as 2160×3840 portrait; 20261031_144105 is a landscape s
 plays sideways in Photos and QuickTime too. The app applies each video's rotation flag as recorded and its clips keep the
 source's flag. The DJI files (1080×1920 with a −90° flag) correctly show as 1920×1080 landscape.
 
+
+## Find Moments: Scan Again — 2026-11-24, "Courtside Tests" (iPhone 17 Pro), iOS 27
+The founder's Northwood vs Edison game (68.9 min, imported; shown as "vs Finale"). Its data came from the 'iPhone 17'
+Simulator, read only: a copy of the database and an APFS clone of the one video, put into 'Courtside Tests' for the
+run, then removed, and 'Courtside Tests'' own data put back. Nothing on 'iPhone 17' was changed; no media in the repo.
+- **Before:** 23 suggestions from the first scan, all reviewed: 16 accepted (16 marks, 16 clips), 7 dismissed
+  (10:23, 11:32, 24:10, 25:04, 25:59, 29:47, 35:01), none waiting. The screen showed "All reviewed".
+- **"⋯" → Scan Again** shows the confirmation. **Cancel** left the screen and list as they were.
+- **Scan Again** listened from 0:00 ("3:06 of 1:08:51" a few seconds in); the "⋯" menu was hidden while listening.
+  It had finished when checked 5 minutes later (the exact time isn't logged; listening to this video took 51 s in
+  the test harness); the first new suggestion was selected and playing, header "23 to review · 16 added".
+- **After:** 23 waiting (the per-hour limit), **3 in the last 6 minutes** (63:25, 64:18, 66:51; the first scan had 0).
+  All 16 accepted and their 16 marks unchanged; **all 7 dismissed still dismissed, none suggested again** (no waiting
+  suggestion within 20 s of one); none within 13 s of a mark; no two suggestions under 20 s apart; no saved scan left.

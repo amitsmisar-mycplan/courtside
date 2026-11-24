@@ -92,10 +92,13 @@ enum MomentPicker {
         var sound: SuggestedMoment.Sound
     }
 
-    /// The moments in `signal`, in time order, skipping any near `marks` (seconds in the same video).
-    static func pick(_ signal: MomentSignal, avoiding marks: [Double], settings: Settings = Settings()) -> [Candidate] {
+    /// The moments in `signal`, in time order, skipping any near `marks` (seconds in the same video)
+    /// and any within `spacing` of `decided`, suggestions the parent already accepted or dismissed.
+    static func pick(_ signal: MomentSignal, avoiding marks: [Double], decided: [Double] = [],
+                     settings: Settings = Settings()) -> [Candidate] {
         let peaks = pick(
-            reaction: signal.reaction, loudness: signal.loudness.map(Double.init), avoiding: marks, settings: settings
+            reaction: signal.reaction, loudness: signal.loudness.map(Double.init), avoiding: marks, decided: decided,
+            settings: settings
         )
         return peaks.map { Candidate(seconds: $0.seconds, score: $0.score, sound: signal.sound(at: Int($0.seconds))) }
     }
@@ -105,6 +108,7 @@ enum MomentPicker {
         reaction: [Double],
         loudness: [Double],
         avoiding marks: [Double],
+        decided: [Double] = [],
         settings: Settings = Settings()
     ) -> [Candidate] {
         let n = min(reaction.count, loudness.count)
@@ -140,7 +144,10 @@ enum MomentPicker {
         var chosen: [Candidate] = []
         for i in peaks where chosen.count < limit {
             let seconds = Double(i)
+            // A scan again (decision 0029) leaves decided moments alone and spends none of the
+            // list on them: a dismissed one never comes back.
             guard !marks.contains(where: { abs($0 - seconds) < settings.markClearance }),
+                  !decided.contains(where: { abs($0 - seconds) < settings.spacing }),
                   !chosen.contains(where: { abs($0.seconds - seconds) < settings.spacing })
             else { continue }
             chosen.append(Candidate(seconds: seconds, score: score[i], sound: .loud))
